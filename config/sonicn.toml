@@ -1,0 +1,21 @@
+# NGageRecomp per-game configuration — SonicN
+# Consumed by the recompiler to drive function recovery and emission.
+# Values are placeholders until the E32Image is parsed in the sonicn-ngage repo.
+
+[input]
+image   = "sonicn.app"     # the E32Image to recompile (user-supplied)
+uid3    = 0x101FB882       # SonicN application UID (sanity check)
+cpu     = "armv4"
+
+[output]
+dir     = "out/"
+context = "ngage_cpu_t"
+
+# Function-recovery hints (filled in as we map the binary).
+[functions]
+# entry = 0x........        # E32Image entry point, from the header
+# hints = []                # known function starts the linear sweep misses
+
+# Sections the recompiler should treat specially (overlays, data-in-code, etc).
+[sections]
+# none known yet

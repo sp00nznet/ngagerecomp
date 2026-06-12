@@ -1,0 +1,29 @@
+# Build output
+/build/
+/out/
+*.o
+*.obj
+*.exe
+*.dll
+*.a
+*.lib
+
+# Generated recompiler output
+/recompiler/out/
+/**/generated/
+
+# NEVER commit game binaries or assets — this is a tool, you bring your own dump.
+*.app
+*.rsc
+*.aif
+*.mbm
+*.sis
+*.bin
+ROMS.zip
+*.zip
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
