@@ -78,6 +78,11 @@ Measured over **all 2,621** SonicN functions / **223,868** instructions:
 | Functions fully lifted | **100%** (2,621) |
 | Whole corpus (247k lines) compiles `clang -Wall` | **clean** (0 errors, 0 warnings) |
 
+**Generalizes to a second game.** Pointed at *Snakes* (a structurally different N-Gage title —
+window-server rendering, ~30 imported DLLs, 2028 funcs / 138k instructions), the lifter
+produced **100% coverage, 0 stubs**, compiling clean — the only change needed was adding the
+`smlal` instruction (Snakes uses it; SonicN didn't). The lifter is not game-specific.
+
 Handled: data processing (MOV/MVN/ADD/SUB/RSB/AND/ORR/EOR/BIC, imm/reg/imm-shifted/
 reg-shifted), CMP/CMN/TST/TEQ, the S-bit, MUL/MLA/SMULL/UMULL, standalone shifts,
 LDR/STR/LDR{H,B}/STR{H,B}/LDRSB/LDRSH with `[Rn,#imm]` / `[Rn,Rm]` / `[pc,#imm]`

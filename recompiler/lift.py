@@ -237,6 +237,14 @@ class Lifter:
             prod = (f"((int64_t)(int32_t){a} * (int64_t)(int32_t){b})" if base == "smull"
                     else f"((uint64_t){a} * (uint64_t){b})")
             return f"{{ uint64_t _p = (uint64_t){prod}; {lo} = (uint32_t)_p; {hi} = (uint32_t)(_p >> 32); }}"
+        if base in ("smlal", "umlal"):    # {hi:lo} += a*b (64-bit signed/unsigned accumulate)
+            lo = self.reg(ins, ops[0].reg, pc)
+            hi = self.reg(ins, ops[1].reg, pc)
+            a, b = self.src(ins, ops[2], pc), self.src(ins, ops[3], pc)
+            prod = (f"((int64_t)(int32_t){a} * (int64_t)(int32_t){b})" if base == "smlal"
+                    else f"((uint64_t){a} * (uint64_t){b})")
+            return (f"{{ uint64_t _a = (uint64_t){lo} | ((uint64_t){hi} << 32); "
+                    f"_a += (uint64_t){prod}; {lo} = (uint32_t)_a; {hi} = (uint32_t)(_a >> 32); }}")
         # ---- standalone shifts (capstone normalizes mov+shift to lsl/lsr/asr/ror) ----
         if base in ("lsl", "lsr", "asr", "ror"):
             dst = self.reg(ins, ops[0].reg, pc)
