@@ -24,6 +24,10 @@ static int g_dirty = 0;
 uint32_t ngage_trace[32];
 unsigned ngage_trace_pos = 0;
 
+/* a real call stack (push on entry, pop on return) so a fault shows its caller chain */
+uint32_t ngage_stack[512];
+int ngage_calldepth = 0;
+
 void ngage_register(uint32_t addr, ngage_fn fn) {
     if (g_n == g_cap) {
         g_cap = g_cap ? g_cap * 2 : 1024;
@@ -40,15 +44,11 @@ static int cmp_entry(const void* a, const void* b) {
     return (x > y) - (x < y);
 }
 
-static int g_depth = 0;
-
 void ngage_call(ngage_cpu_t* c, uint32_t addr) {
     ngage_trace[ngage_trace_pos++ & 31] = addr;
-    if (++g_depth > 20000) {            /* runaway: native stack mirrors guest call depth */
-        fprintf(stderr, "\n*** RUNAWAY RECURSION (depth %d) calling %#x ***\n", g_depth, addr);
-        int n = 24;
-        for (int i = n; i > 0; i--)
-            fprintf(stderr, "  %#x\n", ngage_trace[(ngage_trace_pos - (unsigned)i) & 31]);
+    if (ngage_calldepth < 512) ngage_stack[ngage_calldepth] = addr;
+    if (++ngage_calldepth > 20000) {    /* runaway: native stack mirrors guest call depth */
+        fprintf(stderr, "\n*** RUNAWAY RECURSION (depth %d) calling %#x ***\n", ngage_calldepth, addr);
         abort();
     }
     if (g_dirty) { qsort(g_tab, g_n, sizeof(*g_tab), cmp_entry); g_dirty = 0; }
@@ -58,8 +58,8 @@ void ngage_call(ngage_cpu_t* c, uint32_t addr) {
         if (g_tab[mid].addr < addr) lo = mid + 1;
         else hi = mid;
     }
-    if (lo < g_n && g_tab[lo].addr == addr) { g_tab[lo].fn(c); g_depth--; return; }
-    g_depth--;
+    if (lo < g_n && g_tab[lo].addr == addr) { g_tab[lo].fn(c); ngage_calldepth--; return; }
+    ngage_calldepth--;
     /* Not a lifted function or HLE import: not-yet-lifted code or a bad pointer. */
     ngage_unimplemented(c, addr, "call to unregistered address");
 }

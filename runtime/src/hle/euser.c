@@ -74,9 +74,13 @@ void hle_User_LeaveIfError(ngage_cpu_t* c) {
     /* else: r0 already holds the (non-negative) value, which is the return */
 }
 
-/* TTrap::Trap(TInt& aResult): no-leave path returns 0. Real per-TRAP recovery needs an
- * inline setjmp at the call site (lifter hook) — see kernel.c. */
-void hle_TTrap_Trap(ngage_cpu_t* c)   { c->r[0] = 0; }
+/* TTrap::Trap(TInt& aResult): set *aResult = KErrNone and return 0 (no-leave path). The
+ * result MUST be written or TRAP({r}, ...) loops see r != KErrNone and retry forever.
+ * Real per-TRAP leave recovery still needs an inline setjmp at the call site (kernel.c). */
+void hle_TTrap_Trap(ngage_cpu_t* c) {
+    if (c->r[1]) ngage_w32(c, c->r[1], 0);   /* *aResult = KErrNone */
+    c->r[0] = 0;
+}
 void hle_TTrap_UnTrap(ngage_cpu_t* c) { (void)c; }
 
 /* CleanupStack — the pushed item is a CBase* in r0. */
@@ -93,8 +97,12 @@ void hle_Cleanup_PopAndDestroyN(ngage_cpu_t* c) {
 
 /* User::Panic(const TDesC16& aCategory, TInt aReason) — FATAL: never returns in Symbian.
  * Unwind out (a returning panic causes runaway retry loops in the active-object code). */
+extern uint32_t ngage_stack[512]; extern int ngage_calldepth;
 void hle_User_Panic(ngage_cpu_t* c) {
-    fprintf(stderr, "[GUEST PANIC] reason %d\n", (int)c->r[1]);
+    fprintf(stderr, "[GUEST PANIC] reason %d. call stack (caller -> callee):\n", (int)c->r[1]);
+    int lo = ngage_calldepth > 22 ? ngage_calldepth - 22 : 0;
+    for (int i = lo; i < ngage_calldepth; i++)
+        fprintf(stderr, "  [%d] %#x\n", i, ngage_stack[i]);
     ngage_leave(c, -1000 - (int32_t)c->r[1]);
 }
 void hle_User_Exit(ngage_cpu_t* c)  { ngage_leave(c, (int32_t)c->r[0]); }   /* unwind out */
