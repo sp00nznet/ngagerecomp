@@ -48,7 +48,11 @@ We don't start from scratch on the HLE: the open-source [EKA2L1](https://github.
 
 ## Status
 
-🚧 **Early scaffolding.** This repo is the framework; individual game ports live in their own repos (e.g. the first target, [`sonicn-ngage`](https://github.com/sp00nznet/sonicn-ngage)). See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) and [`docs/SYMBIAN-HLE.md`](docs/SYMBIAN-HLE.md) for the plan and the honest list of unknowns.
+This repo is the framework; individual game ports live in their own repos:
+- [`sonicn-ngage`](https://github.com/sp00nznet/sonicn-ngage) — first target; boots, runs its game loop, loads real assets (NOKIAFC / hand-rolled rendering).
+- [`snakes-ngage`](https://github.com/sp00nznet/snakes-ngage) — second target; **proves the lifter generalizes** (100% / 0 stubs, compiles clean) — window-server rendering.
+
+See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) and [`docs/SYMBIAN-HLE.md`](docs/SYMBIAN-HLE.md).
 
 ## Toolchain
 
