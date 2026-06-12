@@ -73,9 +73,10 @@ We don't start from scratch on the HLE: the open-source [EKA2L1](https://github.
 - [x] **Framebuffer pipeline** — `CFbsBitmap` with a real guest pixel buffer + `DataAddress`, NOKIAFC flip, and a presenter (`framebuffer.c`) converting EColor4K/64K/Gray256 → RGB. Verified: a guest-rendered bitmap flips to a correct image. **45/233 shims**
 - [x] **Game code runs** — image-data loader (`image.c`) + virtual dispatch (`ngage_vcall`); the app's `NewApplication()` executes and `CreateDocumentL` dispatches through the vtable
 - [x] **App init chain traced + driven** — `CPeriodic` + pump, descriptor ctors, soft-float runtime, `ApplicationRect`; fixed a real `LDM` lifter bug; `AppUi::ConstructL` runs deep (alloc, descriptors, float math) and panics cleanly at the active-object check (**88/233 shims**, memory + recursion guards locate faults)
-- [ ] Active-object / async machinery (`CActive` request-complete + `RTimer` + run loop) so construction completes
-- [ ] Nested `TRAP` recovery (inline setjmp at the guest TRAP site — a lifter hook)
-- [ ] First frame on screen from a real game
+- [x] **Game boots + runs its render loop** — `ConstructL` completes, the `CPeriodic` tick runs, and the game renders into a `CFbsBitmap` backbuffer that the present pipeline captures (currently a blank/loading frame). **90/233 shims**
+- [ ] Real asset loading (`.mbm`/`.bin` decode) + game-state progression → actual gameplay graphics
+- [ ] Active-object / async machinery (`CActive` request-complete + `RTimer` run loop) + nested `TRAP` recovery
+- [ ] First *gameplay* frame on screen
 - [ ] Per-game config format + docs
 - [ ] Second title → prove the framework generalizes
 

@@ -15,7 +15,6 @@
 
 typedef struct { uint32_t key; int w, h, mode; uint32_t buf; } bm_t;
 static bm_t g_bm[32];
-static uint32_t g_active;        /* last bitmap touched as a render target */
 
 static bm_t* bm_find(uint32_t key, int alloc) {
     for (int i = 0; i < 32; i++) if (g_bm[i].key == key) return &g_bm[i];
@@ -24,8 +23,13 @@ static bm_t* bm_find(uint32_t key, int alloc) {
     return 0;
 }
 
+static uint32_t obj_vtable(ngage_cpu_t* c);   /* synthetic no-op vtable (defined below) */
+
 /* ---- CFbsBitmap ---- */
-void hle_CFbsBitmap_ctor(ngage_cpu_t* c) { bm_find(c->r[0], 1); /* r0 stays = this */ }
+void hle_CFbsBitmap_ctor(ngage_cpu_t* c) {
+    bm_find(c->r[0], 1);
+    ngage_w32(c, c->r[0], obj_vtable(c));      /* so the game can delete it virtually */
+}
 
 void hle_CFbsBitmap_Create(ngage_cpu_t* c) {        /* Create(const TSize&, TDisplayMode) */
     uint32_t sz = c->r[1];
@@ -39,7 +43,6 @@ void hle_CFbsBitmap_Create(ngage_cpu_t* c) {        /* Create(const TSize&, TDis
 
 void hle_CFbsBitmap_DataAddress(ngage_cpu_t* c) {   /* TUint32* DataAddress() const */
     bm_t* b = bm_find(c->r[0], 0);
-    g_active = c->r[0];
     c->r[0] = b ? b->buf : 0;
 }
 void hle_CFbsBitmap_DisplayMode(ngage_cpu_t* c) {
@@ -79,10 +82,37 @@ void hle_CFbsBitmap_Load(ngage_cpu_t* c) {
     c->r[0] = 0;                                            /* KErrNone */
 }
 
+/* ---- HLE C++ object with a synthetic no-op vtable ----
+ * The game makes virtual calls on graphics objects (device, gc) and deletes them via the
+ * vtable. Give each a vtable of sentinel slots that all dispatch to a no-op-success shim,
+ * so `(*(*obj+N))(obj,…)` resolves instead of indexing a null vtable. */
+#define HLE_OBJ_VT_BASE 0xF1000000u
+static uint32_t g_obj_vtable;
+void hle_obj_method(ngage_cpu_t* c) { c->r[0] = 0; }
+
+static uint32_t obj_vtable(ngage_cpu_t* c) {
+    if (!g_obj_vtable) {
+        g_obj_vtable = ngage_alloc_zeroed(c, 64 * 4);     /* 64 slots (covers +0xc0) */
+        for (int i = 0; i < 64; i++) {
+            uint32_t m = HLE_OBJ_VT_BASE + (uint32_t)i;
+            ngage_w32(c, g_obj_vtable + (uint32_t)i * 4, m);
+            ngage_register(m, hle_obj_method);
+        }
+    }
+    return g_obj_vtable;
+}
+static uint32_t hle_make_object(ngage_cpu_t* c, uint32_t size) {
+    uint32_t o = ngage_alloc_zeroed(c, size);
+    ngage_w32(c, o, obj_vtable(c));
+    return o;
+}
+
 /* ---- BITGDI (thin: the game draws its own pixels) ---- */
+/* CFbsBitmapDevice::NewL(...) (BITGDI ordinal 170) -> a device object */
+void hle_CFbsBitmapDevice_NewL(ngage_cpu_t* c) { c->r[0] = hle_make_object(c, 64); }
+
 void hle_CFbsDevice_CreateContext(ngage_cpu_t* c) { /* (CFbsBitGc*& aGc) -> KErrNone */
-    uint32_t gc = ngage_alloc_zeroed(c, 64);
-    ngage_w32(c, c->r[1], gc);
+    ngage_w32(c, c->r[1], hle_make_object(c, 128));    /* a gc with a usable vtable */
     c->r[0] = 0;
 }
 void hle_BitGc_noop(ngage_cpu_t* c) { c->r[0] = 0; }  /* Activate/SetDitherOrigin/SetShadowMode/SetUserDisplayMode */
@@ -91,6 +121,16 @@ void hle_BitGc_noop(ngage_cpu_t* c) { c->r[0] = 0; }  /* Activate/SetDitherOrigi
  * Exact signature is undocumented (lib not in the firmware dump). Provisional: present the
  * active render-target bitmap. Verify/refine against EKA2L1 once the game drives it. */
 void hle_NOKIAFC_present(ngage_cpu_t* c) {
-    bm_t* b = bm_find(g_active, 0);
-    if (b && b->buf) ngage_present(c, b->buf, b->w, b->h, b->mode);
+    /* The game renders into an off-screen CFbsBitmap and flips with NOKIAFC_1(). It doesn't
+     * tell us which bitmap is the screen, so present the one with the most rendered content
+     * (the active backbuffer). TODO: track the screen bitmap explicitly. */
+    bm_t* best = 0; long bestnz = 0;
+    for (int i = 0; i < 32; i++) {
+        bm_t* b = &g_bm[i];
+        if (!b->key || !b->buf || b->w <= 0 || b->h <= 0) continue;
+        long nz = 0, n = (long)ngage_fb_bytewidth(b->w, b->mode) * b->h;
+        for (long o = 0; o < n; o += 4) if (ngage_r32(c, b->buf + (uint32_t)o)) nz++;
+        if (nz > bestnz) { bestnz = nz; best = b; }
+    }
+    if (best) ngage_present(c, best->buf, best->w, best->h, best->mode);
 }

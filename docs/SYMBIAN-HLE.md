@@ -73,11 +73,21 @@ generated code or shims.
 synthetic no-op vtable (reusable pattern for any HLE-created C++ object the game calls
 virtually). Three lifter bugs fixed along the way (see the recompiler README).
 
-**The app + control `ConstructL` now completes cleanly (`rc=0`), the game's `CPeriodic`
-render-loop timer registers, and the game tick runs.** Getting here needed `CFbsBitmap::Load`
-(FBSCLI ord 156) to set up a bitmap as EColor4K, plus jump-table lowering in the lifter
-(SonicN's tick is full of switches). The current fault is a null-deref deeper in the tick's
-render path — the ongoing HLE grind, now inside real game rendering.
+**The recompiled game boots, runs its game loop, and executes its render code.** `ConstructL`
+completes (`rc=0`), the `CPeriodic` tick runs cleanly for hundreds of frames, and the game
+**renders into a CFbsBitmap backbuffer** (118 `DataAddress` calls over 300 ticks) which the
+present pipeline captures as a real 256×256 frame.
+
+Getting here needed: `CFbsBitmap::Load` (FBSCLI ord 156) + `CFbsBitmapDevice::NewL` (BITGDI
+ord 170) + synthetic no-op vtables on the graphics objects (device/gc/bitmap) so their
+virtual calls and deletes resolve; jump-table lowering in the lifter (the tick is full of
+switches); and the audio/active-object HLE before it.
+
+**Honest state:** the captured frame is currently **blank (white)** — the game is at an
+early/loading stage and its sprite bitmaps are empty because `CFbsBitmap::Load` doesn't yet
+decode the real `.mbm`/`.bin` assets. Real gameplay graphics need (1) actual asset loading
+and (2) the game advancing past init, which is gated by the async/active-object machinery
+that's still stubbed. The pixel pipeline itself is proven end-to-end with real game code.
 
 Added for the bootstrap: **descriptors** (`hle/descriptors.c`), the **CPeriodic** game-loop
 timer + a pump (`hle/scheduler.c`), `CEikAppUi::ApplicationRect` (`hle/coe.c`), and the

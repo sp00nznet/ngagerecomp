@@ -66,7 +66,8 @@ void hle_CFbsBitmap_Header(ngage_cpu_t*);       /* Header() -> SEpocBitmapHeader
 void hle_CFbsBitmap_Load(ngage_cpu_t*);          /* FBSCLI ord 156 = CFbsBitmap::Load */
 void hle_CFbsDevice_CreateContext(ngage_cpu_t*);/* CFbsDevice::CreateContext(CFbsBitGc*&)*/
 void hle_BitGc_noop(ngage_cpu_t*);              /* Activate/SetDither/SetShadow/SetMode  */
-void hle_NOKIAFC_present(ngage_cpu_t*);         /* NOKIAFC ordinal 1 — full-screen flip  */
+void hle_NOKIAFC_present(ngage_cpu_t*);         /* NOKIAFC ord 1 flip */
+void hle_CFbsBitmapDevice_NewL(ngage_cpu_t*); void hle_obj_method(ngage_cpu_t*);
 /* active scheduler / CPeriodic (hle/scheduler.c) */
 void hle_CPeriodic_NewL(ngage_cpu_t*);          /* CPeriodic::NewL(TInt)                 */
 void hle_CPeriodic_Start(ngage_cpu_t*);         /* CPeriodic::Start(delay, interval, cb) */

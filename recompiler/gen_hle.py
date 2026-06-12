@@ -63,6 +63,7 @@ IMPLEMENTED = {
     "SetDitherOrigin__9CFbsBitGcRC6TPoint": "hle_BitGc_noop",
     "SetShadowMode__9CFbsBitGci": "hle_BitGc_noop",
     "SetUserDisplayMode__9CFbsBitGc12TDisplayMode": "hle_BitGc_noop",
+    "BITGDI_170": "hle_CFbsBitmapDevice_NewL",
     "NOKIAFC_1": "hle_NOKIAFC_present",
     # active scheduler / CPeriodic / CActive / RTimer
     "NewL__9CPeriodici": "hle_CPeriodic_NewL",
