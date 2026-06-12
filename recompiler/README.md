@@ -37,30 +37,50 @@ void func_1000bd34(ngage_cpu_t* c) {
 }
 ```
 
-This compiles clean under `clang -Wall` and round-trips correctly (the store lands at
-`r0 + 0x29a`). PC-relative literal loads are **folded to constants** from the image.
+Control flow lifts too — intra-function branches become labels/`goto`, conditional
+branches become `if (cond) goto`, calls go through the dispatch table, and `bx lr` /
+`pop {pc}` become `return`. SonicN's `memset` (`sub_100E76E4`) lifts to:
 
-## First-cut coverage (honest)
+```c
+void func_100e76e4(ngage_cpu_t* c) {
+    c->r[3] = (c->r[2]);                                   // mov r3, r2
+    c->r[2] = c->r[2] - 0x1u;                              // sub r2, r2, #1
+    ngage_sub_flags(c, c->r[3], 0x0u);                     // cmp r3, #0
+    if ((ngage_zf(c) || ngage_nf(c) != ngage_vf(c))) { return; }   // bxle lr
+L_100e76f4:;
+    ngage_w8(c, c->r[0], (uint8_t)c->r[1]); c->r[0] += 1;  // strb r1, [r0], #1
+    c->r[3] = (c->r[2]);                                   // mov r3, r2
+    c->r[2] = c->r[2] - 0x1u;                              // sub r2, r2, #1
+    ngage_sub_flags(c, c->r[3], 0x0u);                     // cmp r3, #0
+    if ((!ngage_zf(c) && ngage_nf(c) == ngage_vf(c))) { goto L_100e76f4; }  // bgt loop
+    return;                                                // bx lr
+}
+```
 
-Measured over 1,270 SonicN functions ≤200 bytes:
+Both compile clean under `clang -Wall` and **execute correctly**: the memset fills
+exactly N bytes, post-increments `r0`, and the `count==0`/`bxle` early-return path
+works. Calls through `ngage_call()` resolve via the dispatch table
+(`runtime/src/dispatch.c`). PC-relative literal loads are **folded to constants**.
+
+## Coverage (whole binary, honest)
+
+Measured over **all 2,621** SonicN functions / **223,868** instructions:
 
 | | |
 |---|---|
-| Instructions lifted | **70.2%** (10,463 / 14,904) |
-| Functions fully lifted (0 stubs) | **27%** (341) |
+| Instructions lifted | **99.94%** (223,727 / 223,868) |
+| Functions fully lifted (0 stubs) | **97.8%** (2,564) |
+| Lifter exceptions | **0** |
 
-Handled now: data processing (MOV/MVN/ADD/SUB/RSB/AND/ORR/EOR/BIC, imm/reg/shifted),
-CMP/CMN/TST/TEQ, the S-bit, LDR/STR/LDRH/STRH/LDRB/STRB (`[Rn,#imm]`, `[Rn,Rm]`,
-`[pc,#imm]` literals), per-instruction condition codes, and `BX` return.
+Handled: data processing (MOV/MVN/ADD/SUB/RSB/AND/ORR/EOR/BIC, imm/reg/imm-shifted),
+CMP/CMN/TST/TEQ, the S-bit, MUL/MLA/SMULL/UMULL, standalone shifts, LDR/STR/LDR{H,B}/
+STR{H,B}/LDRSB/LDRSH with `[Rn,#imm]` / `[Rn,Rm]` / `[pc,#imm]` literals / pre- &
+post-index writeback, PUSH/POP/LDM/STM (ia/ib/da/db), per-instruction condition codes,
+and the full control-flow set (branches → labels, calls → dispatch, returns).
 
 Anything else emits a loud `ngage_unimplemented(...)` stub, so coverage is *measured*,
-not guessed. Next up, in priority order (these are the actual top stubbed mnemonics):
-
-1. **Control flow** — `b` / `bl` / `beq`… : basic-block splitting, intra-function
-   branches as labels/`goto`, and calls via the guest→native dispatch table.
-2. **Stack** — `push` / `pop` / `ldm` / `stm`.
-3. Standalone `lsl` / `lsr` / `asr`, and skipping literal-pool data IDA already marks
-   (those show up as bogus `andeq` decodes today).
+not guessed. The 141 residual stubs are all **register-amount shifts**
+(`orr r0, r1, r2, lsl r3`) and `RRX` — the next thing to implement.
 
 > Generated C and `functions.json` are derived from a game image and are **gitignored** —
 > bring your own dump and produce them locally.

@@ -68,6 +68,11 @@ static inline uint32_t ngage_sub_flags(ngage_cpu_t* c, uint32_t a, uint32_t b) {
     return r;
 }
 
+/* ---- guest -> native dispatch ---- */
+typedef void (*ngage_fn)(ngage_cpu_t*);
+void ngage_register(uint32_t guest_addr, ngage_fn fn);   /* populate the table at startup */
+void ngage_call(ngage_cpu_t* c, uint32_t guest_addr);    /* generated code calls this for bl / indirect / tail */
+
 /* Called by generated code for anything the lifter could not translate. */
 void ngage_unimplemented(ngage_cpu_t* c, uint32_t guest_addr, const char* what);
 

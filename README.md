@@ -62,11 +62,11 @@ We don't start from scratch on the HLE: the open-source [EKA2L1](https://github.
 ## Roadmap
 
 - [x] Confirm IDA loads an N-Gage `.app` and recovers functions + imports *(SonicN: 2,621 funcs, 233 imports)*
-- [x] IDA bridge (`extract.py`) + **ARMv4 lifter MVP** (`lift.py`) — leaf functions lift to C, compile under `clang -Wall`, and round-trip correctly *(70% of instructions, 27% of small functions, zero stubs)*
-- [ ] Control flow: branches → labels/`goto`, calls → guest→native dispatch *(next)*
-- [ ] Stack ops (`push`/`pop`/`ldm`/`stm`) + standalone shifts
-- [ ] NGageRuntime core: register/flag/memory model + dispatch
-- [ ] Symbian HLE: bring-up set (process/heap, file server reads, framebuffer present, key input)
+- [x] IDA bridge (`extract.py`) + **ARMv4 lifter** (`lift.py`) — functions lift to C, compile under `clang -Wall`, and round-trip correctly
+- [x] Control flow (branches → labels/`goto`, calls → dispatch, returns), stack ops, writeback, multiply — **99.94% of instructions, 97.8% of all 2,621 functions, zero exceptions**; verified by executing a lifted `memset` + dispatch call
+- [x] NGageRuntime core: register/flag/memory model + guest→native dispatch (`runtime/`)
+- [ ] Register-amount shifts / `RRX` (the 141 residual stubs)
+- [ ] Symbian HLE bring-up set (process/heap, file-server reads, framebuffer present, key input) — unblocked: the firmware system DLLs give the exact ordinal→signature map
 - [ ] First frame on screen from a real game
 - [ ] Per-game config format + docs
 - [ ] Second title → prove the framework generalizes

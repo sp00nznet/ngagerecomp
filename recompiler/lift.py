@@ -23,7 +23,7 @@ Usage:
 """
 import json, sys, argparse
 from capstone import (Cs, CS_ARCH_ARM, CS_MODE_ARM, CS_MODE_THUMB,
-                      CS_MODE_LITTLE_ENDIAN, CS_OPT_DETAIL)
+                      CS_MODE_LITTLE_ENDIAN, CS_GRP_JUMP, CS_GRP_CALL)
 from capstone.arm import (ARM_OP_REG, ARM_OP_IMM, ARM_OP_MEM, ARM_REG_PC,
                           ARM_REG_LR, ARM_SFT_LSL, ARM_SFT_LSR, ARM_SFT_ASR,
                           ARM_SFT_ROR)
@@ -46,6 +46,15 @@ CC = {
     14: "(ngage_zf(c) || ngage_nf(c) != ngage_vf(c))",   # LE
 }
 SHIFT_C = {ARM_SFT_LSL: "<<", ARM_SFT_LSR: ">>", ARM_SFT_ASR: ">>", ARM_SFT_ROR: None}
+
+# Two-letter ARM condition suffixes — stripped from a mnemonic to get the base op
+# (capstone appends them: movne, strhne, ldreq, ...).
+CC_SUFFIX = {"eq", "ne", "cs", "hs", "cc", "lo", "mi", "pl",
+             "vs", "vc", "hi", "ls", "ge", "lt", "gt", "le", "al"}
+
+
+class Unsupported(Exception):
+    """Raised by operand rendering when the first cut can't represent something."""
 
 
 class Mem:
@@ -87,42 +96,125 @@ class Lifter:
             return f"{op.imm & 0xffffffff:#x}u"
         if op.type == ARM_OP_REG:
             base = self.reg(ins, op.reg, pc)
-            if op.shift.type and op.shift.value:
-                opc = SHIFT_C.get(op.shift.type)
-                if opc is None:                      # ROR
-                    s = op.shift.value
-                    return f"(({base} >> {s}) | ({base} << {32 - s}))"
-                if op.shift.type == ARM_SFT_ASR:
-                    return f"((uint32_t)((int32_t){base} >> {op.shift.value}))"
-                return f"({base} {opc} {op.shift.value})"
+            st, sv = op.shift.type, op.shift.value
+            if st and sv:
+                if st == ARM_SFT_LSL:
+                    return f"({base} << {sv})"
+                if st == ARM_SFT_LSR:
+                    return f"({base} >> {sv})"
+                if st == ARM_SFT_ASR:
+                    return f"((uint32_t)((int32_t){base} >> {sv}))"
+                if st == ARM_SFT_ROR:
+                    return f"(({base} >> {sv}) | ({base} << {32 - sv}))"
+                raise Unsupported()   # RRX / register-amount shifts: stub for now
             return base
-        return "/*?op*/0"
+        raise Unsupported()
+
+    # --- control-flow helpers ---------------------------------------------
+    @staticmethod
+    def _guard(cc, stmt):
+        return f"if ({CC[cc]}) {{ {stmt} }}" if cc else stmt
+
+    def _reglist(self, ins, ops):
+        """[(num, 'rN')] sorted ascending by register number."""
+        out = []
+        for op in ops:
+            name = ins.reg_name(op.reg)
+            num = {"sp": 13, "lr": 14, "pc": 15}.get(
+                name, int(name[1:]) if name and name[0] == "r" else None)
+            out.append((num, name))
+        out.sort(key=lambda x: (x[0] is None, x[0]))
+        return out
 
     # --- instruction emit --------------------------------------------------
-    def emit(self, ins):
-        d = ins  # this binding exposes .operands/.cc/.update_flags/.writeback on the insn
+    def emit(self, ins, next_addr, headset):
+        self.stats["insns"] += 1
+        cc = ins.cc if ins.cc in CC else None
         m = ins.mnemonic
         base = m.split('.')[0]
-        cc = d.cc if d.cc in CC else None
-        body = self._body(ins, base, d)
+        cmt = f"  // {m} {ins.op_str}"
+
+        # ---- calls (bl / blx): set lr, dispatch, fall through ----
+        if ins.group(CS_GRP_CALL):
+            op = ins.operands[0]
+            setlr = f"c->r[14] = {next_addr:#x}u; "
+            tgt = (f"{op.imm & 0xffffffff:#x}u" if op.type == ARM_OP_IMM
+                   else self.reg(ins, op.reg, ins.address))
+            self.stats["lifted"] += 1
+            return "    " + self._guard(cc, f"{setlr}ngage_call(c, {tgt});") + cmt
+
+        # ---- jumps / returns (b / bcc / bx) ----
+        if ins.group(CS_GRP_JUMP):
+            op = ins.operands[0]
+            if op.type == ARM_OP_REG:                      # bx <reg>
+                stmt = ("return;" if op.reg == ARM_REG_LR
+                        else f"ngage_call(c, {self.reg(ins, op.reg, ins.address)}); return;")
+            else:                                          # b/bcc <imm>
+                tgt = op.imm & 0xffffffff
+                stmt = (f"goto L_{tgt:08x};" if tgt in headset
+                        else f"ngage_call(c, {tgt:#x}u); return;")
+            self.stats["lifted"] += 1
+            return "    " + self._guard(cc, stmt) + cmt
+
+        # ---- everything else ----
+        # Strip the 2-char condition suffix so "movne"/"strhne" map to mov/strh,
+        # then the flag-setting 's' so "subs"/"ands"/"lsrs" map to sub/and/lsr.
+        if cc and len(base) > 2 and base[-2:] in CC_SUFFIX:
+            base = base[:-2]
+        if ins.update_flags and len(base) > 3 and base.endswith("s"):
+            base = base[:-1]
+        try:
+            body = self._body(ins, base, ins)
+        except Unsupported:
+            body = None
         if body is None:
             self.stats["stubbed"] += 1
             return (f'    ngage_unimplemented(c, {ins.address:#x}, '
                     f'"{m} {ins.op_str}");  /* TODO */')
         self.stats["lifted"] += 1
-        line = f"    {body}  // {m} {ins.op_str}"
         if cc:
-            return f"    if ({CC[cc]}) {{ {body} }}  // {m} {ins.op_str}"
-        return line
+            return "    " + self._guard(cc, body) + cmt
+        return f"    {body}{cmt}"
 
     def _body(self, ins, base, d):
         ops = d.operands
         pc = ins.address
-        # ---- return ----
-        if base == "bx":
-            if d.operands and d.operands[0].reg == ARM_REG_LR:
-                return "return;"
-            return "return;"  # bx <reg>: leaf model treats as return (TODO: tail dispatch)
+        # ---- stack / block transfer ----
+        if base == "push":
+            return self._push(ins, ops)
+        if base == "pop":
+            return self._pop(ins, ops)
+        if base.startswith("ldm") or base.startswith("stm"):
+            return self._ldm_stm(ins, base, ops)
+        # ---- multiply ----
+        if base == "mul":
+            dst = self.reg(ins, ops[0].reg, pc)
+            s = f"{dst} = {self.src(ins, ops[1], pc)} * {self.src(ins, ops[2], pc)};"
+            if d.update_flags:
+                s += f" ngage_set_nz(c, {dst});"
+            return s
+        if base == "mla":
+            dst = self.reg(ins, ops[0].reg, pc)
+            s = (f"{dst} = {self.src(ins, ops[1], pc)} * {self.src(ins, ops[2], pc)} "
+                 f"+ {self.src(ins, ops[3], pc)};")
+            if d.update_flags:
+                s += f" ngage_set_nz(c, {dst});"
+            return s
+        if base in ("smull", "umull"):
+            lo = self.reg(ins, ops[0].reg, pc)
+            hi = self.reg(ins, ops[1].reg, pc)
+            a, b = self.src(ins, ops[2], pc), self.src(ins, ops[3], pc)
+            prod = (f"((int64_t)(int32_t){a} * (int64_t)(int32_t){b})" if base == "smull"
+                    else f"((uint64_t){a} * (uint64_t){b})")
+            return f"{{ uint64_t _p = (uint64_t){prod}; {lo} = (uint32_t)_p; {hi} = (uint32_t)(_p >> 32); }}"
+        # ---- standalone shifts (capstone normalizes mov+shift to lsl/lsr/asr/ror) ----
+        if base in ("lsl", "lsr", "asr", "ror"):
+            dst = self.reg(ins, ops[0].reg, pc)
+            val = self.src(ins, ops[1], pc)   # the shift is carried on ops[1].shift
+            s = f"{dst} = {val};"
+            if d.update_flags:
+                s += f" ngage_set_nz(c, {dst});"
+            return s
         # ---- moves ----
         if base in ("mov", "mvn"):
             dst = self.reg(ins, ops[0].reg, pc)
@@ -168,7 +260,7 @@ class Lifter:
                 return f"ngage_set_nz(c, {a} & {b});"
             return f"ngage_set_nz(c, {a} ^ {b});"
         # ---- load/store ----
-        if base in ("ldr", "ldrh", "ldrb", "str", "strh", "strb"):
+        if base in ("ldr", "ldrh", "ldrb", "ldrsb", "ldrsh", "str", "strh", "strb"):
             return self._mem(ins, base, d, pc)
         return None
 
@@ -183,41 +275,143 @@ class Lifter:
             if val is not None:
                 dst = self.reg(ins, reg_op.reg, pc)
                 return f"{dst} = {val:#x}u;  /* literal @ {addr:#x} */"
-        # address expression
         b = self.reg(ins, mem.base, pc)
-        addr = b
-        if mem.index:
-            idx = self.reg(ins, mem.index, pc)
-            if getattr(mem, "lshift", 0):
-                idx = f"({idx} << {mem.lshift})"
-            sign = "-" if getattr(mem_op, "subtracted", False) else "+"
-            addr = f"{addr} {sign} {idx}"
-        if mem.disp:
-            addr = f"{addr} + {mem.disp}" if mem.disp >= 0 else f"{addr} - {-mem.disp}"
-        if d.writeback:
-            return None  # pre/post-index writeback not handled yet -> stub
-        sz = {"ldr": 32, "str": 32, "ldrh": 16, "strh": 16, "ldrb": 8, "strb": 8}[base]
+        wb = d.writeback
+        post = len(ops) >= 3   # post-indexed: offset is a trailing operand, access at base
+
+        if post:
+            access = b
+            o3 = ops[2]
+            if o3.type == ARM_OP_IMM:
+                amt = o3.imm
+                update = f"{b} += {amt};" if amt >= 0 else f"{b} -= {-amt};"
+            else:
+                idx = self.reg(ins, o3.reg, pc)
+                sign = "-" if getattr(o3, "subtracted", False) else "+"
+                update = f"{b} {sign}= {idx};"
+        else:
+            addr = b
+            if mem.index:
+                idx = self.reg(ins, mem.index, pc)
+                if getattr(mem, "lshift", 0):
+                    idx = f"({idx} << {mem.lshift})"
+                sign = "-" if getattr(mem_op, "subtracted", False) else "+"
+                addr = f"{addr} {sign} {idx}"
+            if mem.disp:
+                addr = f"{addr} + {mem.disp}" if mem.disp >= 0 else f"{addr} - {-mem.disp}"
+            access = addr
+            update = f"{b} = {addr};" if wb else None   # pre-index: base <- accessed addr
+
+        sz = {"ldr": 32, "str": 32, "ldrh": 16, "strh": 16, "ldrb": 8, "strb": 8,
+              "ldrsb": 8, "ldrsh": 16}[base]
         reg = self.reg(ins, reg_op.reg, pc)
+        rfn = {32: "ngage_r32", 16: "ngage_r16", 8: "ngage_r8"}[sz]
         if base.startswith("ldr"):
-            cast = {32: "ngage_r32", 16: "ngage_r16", 8: "ngage_r8"}[sz]
-            return f"{reg} = {cast}(c, {addr});"
-        wfn = {32: "ngage_w32", 16: "ngage_w16", 8: "ngage_w8"}[sz]
-        cast = {32: "(uint32_t)", 16: "(uint16_t)", 8: "(uint8_t)"}[sz]
-        return f"{wfn}(c, {addr}, {cast}{reg});"
+            if base in ("ldrsb", "ldrsh"):           # sign-extend to 32 bits
+                sext = {8: "(int8_t)", 16: "(int16_t)"}[sz]
+                stmt = f"{reg} = (uint32_t)(int32_t){sext}{rfn}(c, {access});"
+            else:
+                stmt = f"{reg} = {rfn}(c, {access});"
+        else:
+            wfn = {32: "ngage_w32", 16: "ngage_w16", 8: "ngage_w8"}[sz]
+            cast = {32: "(uint32_t)", 16: "(uint16_t)", 8: "(uint8_t)"}[sz]
+            stmt = f"{wfn}(c, {access}, {cast}{reg});"
+        if wb and update:
+            stmt = f"{stmt} {update}"   # access first, then update the base register
+        return stmt
+
+    # --- block transfer ----------------------------------------------------
+    def _push(self, ins, ops):
+        regs = self._reglist(ins, ops)
+        n = len(regs)
+        s = [f"c->r[13] -= {4 * n};"]
+        for i, (num, _) in enumerate(regs):
+            s.append(f"ngage_w32(c, c->r[13] + {4 * i}, c->r[{num}]);")
+        return " ".join(s)
+
+    def _pop(self, ins, ops):
+        regs = self._reglist(ins, ops)
+        n = len(regs)
+        has_pc = any(num == 15 for num, _ in regs)
+        s = []
+        for i, (num, _) in enumerate(regs):
+            if num == 15:
+                s.append(f"/* pc <- [sp+{4 * i}] => return */")
+            else:
+                s.append(f"c->r[{num}] = ngage_r32(c, c->r[13] + {4 * i});")
+        s.append(f"c->r[13] += {4 * n};")
+        if has_pc:
+            s.append("return;")
+        return " ".join(s)
+
+    def _ldm_stm(self, ins, base, ops):
+        load = base.startswith("ldm")
+        mode = base[3:5] if len(base) >= 5 else "ia"   # ia/ib/da/db (capstone-normalized)
+        if mode not in ("ia", "ib", "da", "db"):
+            mode = "ia"
+        b = self.reg(ins, ops[0].reg, ins.address)
+        writeback = ins.writeback
+        regs = self._reglist(ins, ops[1:])
+        n = len(regs)
+        low = {"ia": 0, "ib": 4, "db": -4 * n, "da": -4 * n + 4}[mode]
+        has_pc = any(num == 15 for num, _ in regs)
+        s = []
+        for i, (num, _) in enumerate(regs):
+            off = low + 4 * i
+            addr = b if off == 0 else (f"{b} + {off}" if off > 0 else f"{b} - {-off}")
+            if load:
+                if num == 15:
+                    s.append(f"/* pc <- [{addr}] => return */")
+                else:
+                    s.append(f"c->r[{num}] = ngage_r32(c, {addr});")
+            else:
+                s.append(f"ngage_w32(c, {addr}, c->r[{num}]);")
+        if writeback:
+            s.append(f"{b} {'+=' if low >= 0 else '-='} {4 * n};")
+        if load and has_pc:
+            s.append("return;")
+        return " ".join(s)
 
     # --- whole function ----------------------------------------------------
     def lift_func(self, fn):
         code = bytes.fromhex(fn["bytes"])
+        start = fn["start"]
         md = self.md_t if fn["thumb"] else self.md
-        name = "func_%08x" % fn["start"]
+        # IDA's code instruction heads — so we decode only code, skipping any
+        # embedded literal-pool / data words.
+        heads = fn.get("heads") or [start + o for o in range(0, len(code), 4)]
+        headset = set(heads)
+
+        # Decode exactly one instruction at each head.
+        decoded = []  # (addr, ins)
+        for h in heads:
+            off = h - start
+            if off < 0 or off >= len(code):
+                continue
+            ins = next(md.disasm(code[off:off + 4], h), None)
+            if ins is not None:
+                decoded.append((h, ins))
+
+        # Pass 1: intra-function branch targets become labels.
+        labels = set()
+        for _, ins in decoded:
+            if ins.group(CS_GRP_JUMP) and not ins.group(CS_GRP_CALL):
+                op = ins.operands[0]
+                if op.type == ARM_OP_IMM and (op.imm & 0xffffffff) in headset:
+                    labels.add(op.imm & 0xffffffff)
+
+        # Pass 2: emit.
+        name = "func_%08x" % start
         lines = [
-            f"/* {fn['name']}  @ {fn['start']:#010x}  ({fn['size']} bytes, "
+            f"/* {fn['name']}  @ {start:#010x}  ({fn['size']} bytes, "
             f"{'Thumb' if fn['thumb'] else 'ARM'}) */",
             f"void {name}(ngage_cpu_t* c) {{",
         ]
-        for ins in md.disasm(code, fn["start"]):
-            self.stats["insns"] += 1
-            lines.append(self.emit(ins))
+        for i, (addr, ins) in enumerate(decoded):
+            if addr in labels:
+                lines.append(f"L_{addr:08x}:;")
+            next_addr = decoded[i + 1][0] if i + 1 < len(decoded) else fn["end"]
+            lines.append(self.emit(ins, next_addr, headset))
         lines.append("}")
         return "\n".join(lines)
 

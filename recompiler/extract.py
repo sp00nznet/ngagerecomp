@@ -57,6 +57,10 @@ def main():
         if max_size and size > max_size:
             continue
         b = ida_bytes.get_bytes(f.start_ea, size) or b""
+        # Real instruction heads (code only) so the lifter can skip embedded
+        # literal-pool / data words instead of mis-decoding them as code.
+        heads = [h for h in idautils.FuncItems(f.start_ea)
+                 if ida_bytes.is_code(ida_bytes.get_flags(h))]
         funcs.append({
             "name": idc.get_func_name(ea),
             "start": f.start_ea,
@@ -64,6 +68,7 @@ def main():
             "size": size,
             "thumb": is_thumb(f.start_ea),
             "calls_out": func_calls_out(f.start_ea, f.end_ea),
+            "heads": heads,
             "bytes": b.hex(),
         })
 
