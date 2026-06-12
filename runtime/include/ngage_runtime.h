@@ -89,6 +89,19 @@ uint32_t ngage_alloc(ngage_cpu_t* c, uint32_t size);
 uint32_t ngage_alloc_zeroed(ngage_cpu_t* c, uint32_t size);
 void     ngage_free(ngage_cpu_t* c, uint32_t guest_ptr);
 
+/* ---- Symbian descriptors (TDesC/TDes) ----
+ * First word packs type in the top 4 bits, length in the low 28. Layout by type:
+ *   EBufC(0): [len] data@+4      EPtrC(1): [len][ptr]
+ *   EPtr(2):  [len][max][ptr]    EBuf(3):  [len][max] data@+8     EBufCPtr(4): [len][max][ptr]
+ * ngage_desc() resolves any of these to a flat (ptr, len, maxlen). Lengths are in
+ * elements: bytes for 8-bit descriptors, 16-bit units for 16-bit ones. */
+typedef struct { uint32_t ptr; uint32_t len; uint32_t maxlen; } ngage_desc_t;
+ngage_desc_t ngage_desc(ngage_cpu_t* c, uint32_t addr);
+void         ngage_desc_setlen(ngage_cpu_t* c, uint32_t addr, uint32_t len);
+
+/* ---- host file backing for EFSRV ---- */
+void ngage_fs_mount(const char* host_root);   /* directory the guest filesystem maps to */
+
 /* ---- Symbian leave / cleanup-stack ---- */
 int      ngage_run(ngage_cpu_t* c, ngage_fn entry);   /* top-level trap; returns leave code or 0 */
 void     ngage_leave(ngage_cpu_t* c, int32_t reason); /* non-local unwind to nearest trap (no return) */
@@ -99,6 +112,7 @@ void     ngage_cleanup_unwind_to(ngage_cpu_t* c, int level);
 
 void ngage_register(uint32_t guest_addr, ngage_fn fn);   /* populate the table at startup */
 void ngage_call(ngage_cpu_t* c, uint32_t guest_addr);    /* generated code calls this for bl / indirect / tail */
+void ngage_game_register(void);                          /* register all lifted funcs (generated) */
 
 /* Called by generated code for anything the lifter could not translate. */
 void ngage_unimplemented(ngage_cpu_t* c, uint32_t guest_addr, const char* what);

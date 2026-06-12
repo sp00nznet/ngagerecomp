@@ -36,6 +36,20 @@ IMPLEMENTED = {
     "Panic__4UserRC7TDesC16i": "hle_User_Panic",
     "Exit__4Useri": "hle_User_Exit",
     "Close__11RHandleBase": "hle_RHandleBase_Close",
+    # EFSRV — file server
+    "Connect__3RFsi": "hle_RFs_Connect",
+    "Close__7RFsBase": "hle_RFsBase_Close",
+    "Delete__3RFsRC7TDesC16": "hle_RFs_Delete",
+    "MkDir__3RFsRC7TDesC16": "hle_RFs_MkDir",
+    "Open__5RFileR3RFsRC7TDesC16Ui": "hle_RFile_Open",
+    "Create__5RFileR3RFsRC7TDesC16Ui": "hle_RFile_Create",
+    "Read__C5RFileR5TDes8": "hle_RFile_Read",
+    "Read__C5RFileR5TDes8i": "hle_RFile_ReadLen",
+    "Write__5RFileRC6TDesC8i": "hle_RFile_Write",
+    "Size__C5RFileRi": "hle_RFile_Size",
+    "Seek__C5RFile5TSeekRi": "hle_RFile_Seek",
+    "SetSize__5RFilei": "hle_RFile_SetSize",
+    "Flush__5RFile": "hle_RFile_Flush",
 }
 
 

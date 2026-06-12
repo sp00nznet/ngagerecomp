@@ -68,7 +68,7 @@ generated code or shims.
 
 ## Status
 
-**19 / 233 implemented**, 214 named-stubbed (`runtime/src/hle/euser.c` + `runtime/src/`).
+**32 / 233 implemented**, 201 named-stubbed (`runtime/src/hle/*` + `runtime/src/`).
 
 - **mem:** `memcpy`, `memset`, `Mem::FillZ`
 - **heap / new / delete:** `CBase::operator new` (zeroed), `CBase::operator new + TLeave`,
@@ -78,11 +78,20 @@ generated code or shims.
   `CleanupStack::PushL` / `Pop` / `PopAndDestroy(/N)`, `User::Exit`, `User::Panic`,
   `RHandleBase::Close` — over the leave machinery (`kernel.c`: setjmp/longjmp trap +
   cleanup stack)
+- **EFSRV (file server):** `RFs::Connect`, `RFile::Open`/`Create`/`Read`(×2)/`Write`/
+  `Size`/`Seek`/`SetSize`/`Flush`, `RFs::Delete`/`MkDir`, `RFsBase::Close` — host-file
+  backing under a mounted root (`hle/efsrv.c`), with full Symbian **descriptor** decode
+  (`desc.c`: TBufC/TPtrC/TPtr/TBuf/TBufCPtr → flat ptr/len/maxlen).
 
-Verified: heap alloc/free/reuse; a `User::LeaveIfError(-4)` from inside a deep call
-unwinds through `ngage_run`, runs the cleanup stack (freeing a pushed allocation), and
-returns the leave code. And the **whole lifted game (2,621 functions) links with the
-runtime + HLE into one executable** that runs its init path.
+Beyond the HLE imports, two generators wire the recompiled program together:
+`gen_register.py` registers all 2,621 lifted functions at their guest addresses (so the
+game calls itself through dispatch), and dispatch is a lazily-sorted binary search.
+
+Verified: heap alloc/free/reuse; a `LeaveIfError(-4)` deep in a call unwinds through
+`ngage_run`, runs the cleanup stack, returns the code; the game **calls its own
+functions** by address; and it **reads a real asset file** (`volume.mbm`: correct size +
+byte-exact content) through `RFile::Open`/`Size`/`Read`. The whole lifted game + runtime
++ HLE link into **one 6.3 MB executable** that runs its init path.
 
 | Status | Meaning |
 |---|---|

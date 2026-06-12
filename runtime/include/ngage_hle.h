@@ -41,7 +41,21 @@ void hle_Cleanup_PopAndDestroy(ngage_cpu_t*);   /* CleanupStack::PopAndDestroy()
 void hle_Cleanup_PopAndDestroyN(ngage_cpu_t*);  /* CleanupStack::PopAndDestroy(TInt)     */
 void hle_User_Panic(ngage_cpu_t*);          /* User::Panic(const TDesC16&, TInt)         */
 void hle_User_Exit(ngage_cpu_t*);           /* User::Exit(TInt)                          */
-void hle_RHandleBase_Close(ngage_cpu_t*);   /* RHandleBase::Close()                      */
+void hle_RHandleBase_Close(ngage_cpu_t*);   /* RHandleBase::Close() (in hle/efsrv.c)     */
+/* EFSRV — file server (hle/efsrv.c) */
+void hle_RFs_Connect(ngage_cpu_t*);         /* RFs::Connect(TInt)                        */
+void hle_RFsBase_Close(ngage_cpu_t*);       /* RFsBase::Close()                          */
+void hle_RFs_Delete(ngage_cpu_t*);          /* RFs::Delete(const TDesC16&)               */
+void hle_RFs_MkDir(ngage_cpu_t*);           /* RFs::MkDir(const TDesC16&)                */
+void hle_RFile_Open(ngage_cpu_t*);          /* RFile::Open(RFs&, const TDesC16&, TUint)  */
+void hle_RFile_Create(ngage_cpu_t*);        /* RFile::Create(RFs&, const TDesC16&, TUint)*/
+void hle_RFile_Read(ngage_cpu_t*);          /* RFile::Read(TDes8&)                       */
+void hle_RFile_ReadLen(ngage_cpu_t*);       /* RFile::Read(TDes8&, TInt)                 */
+void hle_RFile_Write(ngage_cpu_t*);         /* RFile::Write(const TDesC8&, TInt)         */
+void hle_RFile_Size(ngage_cpu_t*);          /* RFile::Size(TInt&)                        */
+void hle_RFile_Seek(ngage_cpu_t*);          /* RFile::Seek(TSeek, TInt&)                 */
+void hle_RFile_SetSize(ngage_cpu_t*);       /* RFile::SetSize(TInt)                      */
+void hle_RFile_Flush(ngage_cpu_t*);         /* RFile::Flush()                            */
 
 #ifdef __cplusplus
 }

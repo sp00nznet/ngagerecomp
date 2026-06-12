@@ -82,4 +82,4 @@ void hle_Cleanup_PopAndDestroyN(ngage_cpu_t* c) {
 
 void hle_User_Panic(ngage_cpu_t* c) { ngage_unimplemented(c, 0, "User::Panic"); }
 void hle_User_Exit(ngage_cpu_t* c)  { ngage_leave(c, (int32_t)c->r[0]); }   /* unwind out */
-void hle_RHandleBase_Close(ngage_cpu_t* c) { (void)c; }   /* handles are HLE-managed */
+/* hle_RHandleBase_Close lives in hle/efsrv.c (it may close an open file handle). */
