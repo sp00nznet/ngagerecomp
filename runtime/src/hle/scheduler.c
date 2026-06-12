@@ -31,16 +31,28 @@ void hle_CPeriodic_Start(ngage_cpu_t* c) {
     if (fn && g_nper < 16) { g_per[g_nper].fn = fn; g_per[g_nper].ptr = ptr; g_nper++; }
 }
 
+/* ---- system time ----
+ * The game times animation/state off User::TickCount() deltas; a constant stub freezes it
+ * on the first frame. Advance one tick (~1/64 s on EKA1) per pumped frame so time moves. */
+uint32_t ngage_g_ticks = 0;
+void hle_User_TickCount(ngage_cpu_t* c) { c->r[0] = ngage_g_ticks; }
+void hle_User_After(ngage_cpu_t* c) {     /* User::After(TTimeIntervalMicroSeconds32) us=r0 */
+    uint32_t t = c->r[0] / 15625u;        /* us -> 1/64 s ticks */
+    ngage_g_ticks += t ? t : 1;
+}
+
 /* Drive every registered periodic callback `count` times (one frame each). */
 int ngage_pump_periodics(ngage_cpu_t* c, int count) {
     int fired = 0;
-    for (int k = 0; k < count; k++)
+    for (int k = 0; k < count; k++) {
+        ngage_g_ticks++;                            /* one tick period per frame */
         for (int i = 0; i < g_nper; i++) {
             c->r[0] = g_per[i].ptr;
             c->r[13] = 0x10700000;                  /* fresh stack per tick */
             ngage_call(c, g_per[i].fn);
             fired++;
         }
+    }
     return fired;
 }
 int ngage_periodic_count(void) { return g_nper; }

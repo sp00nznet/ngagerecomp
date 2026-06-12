@@ -83,11 +83,18 @@ ord 170) + synthetic no-op vtables on the graphics objects (device/gc/bitmap) so
 virtual calls and deletes resolve; jump-table lowering in the lifter (the tick is full of
 switches); and the audio/active-object HLE before it.
 
-**Honest state:** the captured frame is currently **blank (white)** — the game is at an
-early/loading stage and its sprite bitmaps are empty because `CFbsBitmap::Load` doesn't yet
-decode the real `.mbm`/`.bin` assets. Real gameplay graphics need (1) actual asset loading
-and (2) the game advancing past init, which is gated by the async/active-object machinery
-that's still stubbed. The pixel pipeline itself is proven end-to-end with real game code.
+**The game advances through its states and loads its real assets.** `User::TickCount` was a
+constant stub, freezing the game's frame timing on the first screen; implementing it (+
+`User::After`) to advance one tick per frame unfroze it. The game now progresses through
+init and **loads its actual graphics assets** — `action_char4.bin` (3.6 MB of character
+graphics), `action_char8.bin`, `etcdata.bin` (levels), sound — through EFSRV, then runs its
+sprite/tile-setup code (`sub_1000B188`/`sub_100EBCC4`).
+
+**Honest state:** the next fault is a null-deref in that sprite-setup path — the ongoing
+HLE grind, now deep in the real gameplay data path. The earlier captured frame is still a
+blank clear; recognizable graphics need the sprite-decode path to run, which is the current
+frontier. The pixel pipeline, asset I/O, timing, and game-loop are all proven with real
+game code.
 
 Added for the bootstrap: **descriptors** (`hle/descriptors.c`), the **CPeriodic** game-loop
 timer + a pump (`hle/scheduler.c`), `CEikAppUi::ApplicationRect` (`hle/coe.c`), and the

@@ -74,6 +74,7 @@ void hle_CPeriodic_Start(ngage_cpu_t*);         /* CPeriodic::Start(delay, inter
 void hle_sched_noop(ngage_cpu_t*);              /* CActive/CActiveScheduler/RTimer no-ops*/
 int  ngage_pump_periodics(ngage_cpu_t*, int count);  /* drive the game loop N ticks      */
 int  ngage_periodic_count(void);
+void hle_User_TickCount(ngage_cpu_t*); void hle_User_After(ngage_cpu_t*);
 /* control framework (hle/coe.c) */
 void hle_ApplicationRect(ngage_cpu_t*);         /* CEikAppUi::ApplicationRect() -> TRect */
 /* descriptors (hle/descriptors.c) */

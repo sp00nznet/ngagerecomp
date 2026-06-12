@@ -79,6 +79,8 @@ IMPLEMENTED = {
     "Cancel__6RTimer": "hle_sched_noop",
     # control framework
     "ApplicationRect__C9CEikAppUi": "hle_ApplicationRect",
+    "TickCount__4User": "hle_User_TickCount",
+    "After__4UserG27TTimeIntervalMicroSeconds32": "hle_User_After",
     # descriptors
     "__5TPtr8PUci": "hle_TPtr8_pm",
     "__5TPtr8PUcii": "hle_TPtr8_plm",

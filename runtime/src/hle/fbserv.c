@@ -134,3 +134,19 @@ void hle_NOKIAFC_present(ngage_cpu_t* c) {
     }
     if (best) ngage_present(c, best->buf, best->w, best->h, best->mode);
 }
+
+/* Capture the current screen: present the most-rendered bitmap. The game uses a persistent
+ * framebuffer (it flips once at init), so call this periodically to snapshot what it's
+ * drawing. Returns the count of non-zero pixels in the chosen bitmap. */
+long ngage_fb_snapshot(ngage_cpu_t* c) {
+    bm_t* best = 0; long bestnz = 0;
+    for (int i = 0; i < 32; i++) {
+        bm_t* b = &g_bm[i];
+        if (!b->key || !b->buf || b->w <= 0 || b->h <= 0) continue;
+        long nz = 0, n = (long)ngage_fb_bytewidth(b->w, b->mode) * b->h;
+        for (long o = 0; o < n; o += 4) if (ngage_r32(c, b->buf + (uint32_t)o)) nz++;
+        if (nz > bestnz) { bestnz = nz; best = b; }
+    }
+    if (best) ngage_present(c, best->buf, best->w, best->h, best->mode);
+    return bestnz;
+}
