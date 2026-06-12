@@ -103,6 +103,12 @@ IMPLEMENTED = {
     "__gtsf2": "hle_cmpsf2", "__lesf2": "hle_cmpsf2",
     # audio output stream
     "CMdaAudioOutputStreamPadFunction__Fv": "hle_CMdaAudioOutputStream_NewL",
+    # WS32 window server (Snakes)
+    "WS32_348": "hle_ws_object",
+    "WS32_58": "hle_ws_noop", "WS32_245": "hle_ws_noop", "WS32_289": "hle_ws_noop", "WS32_350": "hle_ws_noop",
+    # CONE/EIKCORE singleton getters -> a valid object
+    "Static__7CCoeEnv": "hle_return_object",
+    "Application__C9CEikAppUi": "hle_return_object",
 }
 
 

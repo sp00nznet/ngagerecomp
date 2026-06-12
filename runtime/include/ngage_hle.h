@@ -92,6 +92,10 @@ void hle_divsi3(ngage_cpu_t*); void hle_udivsi3(ngage_cpu_t*); void hle_modsi3(n
 void hle_cmpdf2(ngage_cpu_t*); void hle_cmpsf2(ngage_cpu_t*);
 /* audio (hle/media.c) */
 void hle_CMdaAudioOutputStream_NewL(ngage_cpu_t*); void hle_media_method(ngage_cpu_t*);
+/* shared HLE object + window server (hleobj.c / hle/wserv.c) */
+uint32_t ngage_hle_object(ngage_cpu_t*, uint32_t size); void hle_obj_vmethod(ngage_cpu_t*);
+void hle_ws_object(ngage_cpu_t*); void hle_ws_noop(ngage_cpu_t*);
+uint32_t ngage_hle_universal(ngage_cpu_t*); void hle_return_object(ngage_cpu_t*);
 
 #ifdef __cplusplus
 }
