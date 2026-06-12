@@ -68,6 +68,12 @@ static inline uint32_t ngage_sub_flags(ngage_cpu_t* c, uint32_t a, uint32_t b) {
     return r;
 }
 
+/* ---- register-amount shifts (ARM uses Rs[7:0]; C shift by >= width is UB) ---- */
+static inline uint32_t ngage_lsl(uint32_t v, uint32_t amt){ amt&=0xff; return amt>=32?0u:(v<<amt); }
+static inline uint32_t ngage_lsr(uint32_t v, uint32_t amt){ amt&=0xff; return amt>=32?0u:(v>>amt); }
+static inline uint32_t ngage_asr(uint32_t v, uint32_t amt){ amt&=0xff; if(amt>=32)amt=31; return (uint32_t)((int32_t)v>>amt); }
+static inline uint32_t ngage_ror(uint32_t v, uint32_t amt){ amt&=0xff; if(!amt)return v; amt&=31; return amt?((v>>amt)|(v<<(32-amt))):v; }
+
 /* ---- guest -> native dispatch ---- */
 typedef void (*ngage_fn)(ngage_cpu_t*);
 void ngage_register(uint32_t guest_addr, ngage_fn fn);   /* populate the table at startup */

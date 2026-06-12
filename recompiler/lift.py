@@ -26,7 +26,8 @@ from capstone import (Cs, CS_ARCH_ARM, CS_MODE_ARM, CS_MODE_THUMB,
                       CS_MODE_LITTLE_ENDIAN, CS_GRP_JUMP, CS_GRP_CALL)
 from capstone.arm import (ARM_OP_REG, ARM_OP_IMM, ARM_OP_MEM, ARM_REG_PC,
                           ARM_REG_LR, ARM_SFT_LSL, ARM_SFT_LSR, ARM_SFT_ASR,
-                          ARM_SFT_ROR)
+                          ARM_SFT_ROR, ARM_SFT_LSL_REG, ARM_SFT_LSR_REG,
+                          ARM_SFT_ASR_REG, ARM_SFT_ROR_REG)
 
 # Capstone ARM condition-code ids -> C boolean expression over flag accessors.
 CC = {
@@ -57,6 +58,21 @@ class Unsupported(Exception):
     """Raised by operand rendering when the first cut can't represent something."""
 
 
+# ARM register name -> index (incl. ABI aliases capstone emits: ip=r12, fp=r11, ...).
+_REG_NUM = {"sp": 13, "lr": 14, "pc": 15, "ip": 12, "fp": 11, "sl": 10, "sb": 9}
+
+
+def regnum(name):
+    if name in _REG_NUM:
+        return _REG_NUM[name]
+    if name and name[0] == "r":
+        try:
+            return int(name[1:])
+        except ValueError:
+            return None
+    return None
+
+
 class Mem:
     """Sparse image: resolve a virtual address to bytes from the dumped segments."""
     def __init__(self, segments):
@@ -82,12 +98,11 @@ class Lifter:
     # --- operand rendering -------------------------------------------------
     def reg(self, ins, rid, pc):
         if rid == ARM_REG_PC:
-            return f"0x{pc + 8:#x}".replace("0x0x", "0x")  # ARM: PC reads as addr+8
+            return f"{pc + 8:#x}u"          # ARM: PC reads as instruction addr + 8
         name = ins.reg_name(rid)
-        n = int(name[1:]) if name and name[0] == 'r' else \
-            {"sp": 13, "lr": 14, "pc": 15}.get(name, None)
+        n = regnum(name)
         if n is None:
-            return f"/*?{name}*/0"
+            raise Unsupported()             # unknown register -> stub the instruction
         return f"c->r[{n}]"
 
     def src(self, ins, op, pc):
@@ -106,7 +121,12 @@ class Lifter:
                     return f"((uint32_t)((int32_t){base} >> {sv}))"
                 if st == ARM_SFT_ROR:
                     return f"(({base} >> {sv}) | ({base} << {32 - sv}))"
-                raise Unsupported()   # RRX / register-amount shifts: stub for now
+                # register-amount shifts: amount is register id `sv`
+                rs = {ARM_SFT_LSL_REG: "ngage_lsl", ARM_SFT_LSR_REG: "ngage_lsr",
+                      ARM_SFT_ASR_REG: "ngage_asr", ARM_SFT_ROR_REG: "ngage_ror"}.get(st)
+                if rs:
+                    return f"{rs}({base}, {self.reg(ins, sv, pc)})"
+                raise Unsupported()   # RRX (rotate through carry): rare
             return base
         raise Unsupported()
 
@@ -117,12 +137,7 @@ class Lifter:
 
     def _reglist(self, ins, ops):
         """[(num, 'rN')] sorted ascending by register number."""
-        out = []
-        for op in ops:
-            name = ins.reg_name(op.reg)
-            num = {"sp": 13, "lr": 14, "pc": 15}.get(
-                name, int(name[1:]) if name and name[0] == "r" else None)
-            out.append((num, name))
+        out = [(regnum(ins.reg_name(op.reg)), ins.reg_name(op.reg)) for op in ops]
         out.sort(key=lambda x: (x[0] is None, x[0]))
         return out
 
@@ -268,8 +283,9 @@ class Lifter:
         ops = d.operands
         reg_op, mem_op = ops[0], ops[1]
         mem = mem_op.mem
-        # PC-relative literal load -> fold the constant from the image.
-        if base == "ldr" and mem.base == ARM_REG_PC and mem.index == 0:
+        pc_dest = base.startswith("ldr") and reg_op.reg == ARM_REG_PC
+        # PC-relative literal load -> fold the constant from the image (non-PC dest only).
+        if base == "ldr" and mem.base == ARM_REG_PC and mem.index == 0 and not pc_dest:
             addr = pc + 8 + mem.disp
             val = self.mem.r32(addr)
             if val is not None:
@@ -304,8 +320,13 @@ class Lifter:
 
         sz = {"ldr": 32, "str": 32, "ldrh": 16, "strh": 16, "ldrb": 8, "strb": 8,
               "ldrsb": 8, "ldrsh": 16}[base]
-        reg = self.reg(ins, reg_op.reg, pc)
         rfn = {32: "ngage_r32", 16: "ngage_r16", 8: "ngage_r8"}[sz]
+        if pc_dest:
+            # ldr pc, [...] — computed/indirect jump (jump table or fn-ptr load).
+            # TODO: lower constant jump tables to a C switch; for now dispatch + return.
+            pre = (update + " ") if (wb and update) else ""
+            return f"{pre}ngage_call(c, {rfn}(c, {access})); return;"
+        reg = self.reg(ins, reg_op.reg, pc)
         if base.startswith("ldr"):
             if base in ("ldrsb", "ldrsh"):           # sign-extend to 32 bits
                 sext = {8: "(int8_t)", 16: "(int16_t)"}[sz]
@@ -380,9 +401,9 @@ class Lifter:
         # IDA's code instruction heads — so we decode only code, skipping any
         # embedded literal-pool / data words.
         heads = fn.get("heads") or [start + o for o in range(0, len(code), 4)]
-        headset = set(heads)
 
-        # Decode exactly one instruction at each head.
+        # Decode exactly one instruction at each in-range head. A function can have
+        # non-contiguous chunks; heads outside our byte window aren't ours to lift.
         decoded = []  # (addr, ins)
         for h in heads:
             off = h - start
@@ -391,6 +412,9 @@ class Lifter:
             ins = next(md.disasm(code[off:off + 4], h), None)
             if ins is not None:
                 decoded.append((h, ins))
+        # Only addresses we actually decoded can be local goto targets; anything else
+        # (other chunks, other functions) routes through the dispatch table.
+        headset = {addr for addr, _ in decoded}
 
         # Pass 1: intra-function branch targets become labels.
         labels = set()

@@ -68,19 +68,26 @@ Measured over **all 2,621** SonicN functions / **223,868** instructions:
 
 | | |
 |---|---|
-| Instructions lifted | **99.94%** (223,727 / 223,868) |
-| Functions fully lifted (0 stubs) | **97.8%** (2,564) |
-| Lifter exceptions | **0** |
+| Instructions lifted | **100.0%** (0 stubs) |
+| Functions fully lifted | **100%** (2,621) |
+| Whole corpus (247k lines) compiles `clang -Wall` | **clean** (0 errors, 0 warnings) |
 
-Handled: data processing (MOV/MVN/ADD/SUB/RSB/AND/ORR/EOR/BIC, imm/reg/imm-shifted),
-CMP/CMN/TST/TEQ, the S-bit, MUL/MLA/SMULL/UMULL, standalone shifts, LDR/STR/LDR{H,B}/
-STR{H,B}/LDRSB/LDRSH with `[Rn,#imm]` / `[Rn,Rm]` / `[pc,#imm]` literals / pre- &
-post-index writeback, PUSH/POP/LDM/STM (ia/ib/da/db), per-instruction condition codes,
-and the full control-flow set (branches → labels, calls → dispatch, returns).
+Handled: data processing (MOV/MVN/ADD/SUB/RSB/AND/ORR/EOR/BIC, imm/reg/imm-shifted/
+reg-shifted), CMP/CMN/TST/TEQ, the S-bit, MUL/MLA/SMULL/UMULL, standalone shifts,
+LDR/STR/LDR{H,B}/STR{H,B}/LDRSB/LDRSH with `[Rn,#imm]` / `[Rn,Rm]` / `[pc,#imm]`
+literals / pre- & post-index writeback, PUSH/POP/LDM/STM (ia/ib/da/db), the ABI register
+aliases (ip/fp/sl/sb), per-instruction condition codes, and the full control-flow set
+(branches → labels, calls → dispatch, returns).
 
-Anything else emits a loud `ngage_unimplemented(...)` stub, so coverage is *measured*,
-not guessed. The 141 residual stubs are all **register-amount shifts**
-(`orr r0, r1, r2, lsl r3`) and `RRX` — the next thing to implement.
+> **Compiling the whole corpus is the real gate** — the coverage % counts emitted
+> instructions, but only `clang -Wall` proves the C is *valid*. Two bugs the % missed
+> and the compile caught: unmapped `ip`/`fp` aliases, and `goto` into non-contiguous
+> function chunks. Both fixed.
+
+**Known simplification:** `ldr pc, [pc, rN, lsl #2]` jump tables currently lower to a
+runtime `ngage_call(...)` dispatch rather than a static C `switch`. They compile and are
+honest (an unresolved target logs, never crashes silently), but switch lowering from the
+constant jump-table data is a TODO before those code paths run for real.
 
 > Generated C and `functions.json` are derived from a game image and are **gitignored** —
 > bring your own dump and produce them locally.
