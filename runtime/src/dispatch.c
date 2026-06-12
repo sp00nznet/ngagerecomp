@@ -47,3 +47,14 @@ void ngage_call(ngage_cpu_t* c, uint32_t addr) {
     /* Not a lifted function or HLE import: not-yet-lifted code or a bad pointer. */
     ngage_unimplemented(c, addr, "call to unregistered address");
 }
+
+/* C++ virtual call: read the object's vtable, dispatch the slot at byte offset `voffset`.
+ * Set the argument registers (r1..) before calling; `this` goes in r0. Returns r0. */
+uint32_t ngage_vcall(ngage_cpu_t* c, uint32_t object, uint32_t voffset) {
+    uint32_t vtable = ngage_r32(c, object);
+    uint32_t fn = ngage_r32(c, vtable + voffset);
+    if (!fn) { ngage_unimplemented(c, object, "vcall: empty vtable slot"); return 0; }
+    c->r[0] = object;
+    ngage_call(c, fn);
+    return c->r[0];
+}

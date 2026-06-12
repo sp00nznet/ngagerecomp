@@ -23,6 +23,12 @@ sonicn.app ──(extract.py / IDA idalib)──▶ functions.json ──(lift.p
   py -3.11 lift.py functions.json --addr 0x1000bd34 --out generated.c
   py -3.11 lift.py functions.json --self-test          # lift a known leaf set
   ```
+- **`gen_register.py`** — registers all lifted functions at their guest addresses so the
+  game can call itself (`game_register.c`).
+- **`extract_imports.py` + `gen_hle.py`** — dump the import table and wire each slot to an
+  HLE shim or a named stub (`imports.json` → `hle_generated.c`).
+- **`gen_image.py`** — pack the image's data segments (vtables/const pools/jump tables)
+  into `segments.bin` for the runtime image loader, so guest data reads resolve.
 
 ## What it emits
 

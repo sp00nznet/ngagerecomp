@@ -106,13 +106,30 @@ byte-exact content) through `RFile::Open`/`Size`/`Read`; and the **bitmap→pres
 pipeline** produces a correct frame (above). The whole lifted game + runtime + HLE link
 into **one executable** that runs its init path.
 
+## Bootstrap — first contact
+
+The recompiled game's **own code now runs**. Two pieces made it possible:
+
+- **Image loader** (`image.c` + `gen_image.py`): the lifted *code* is native, but it reads
+  the image's *data* — vtables, jump tables, const pools — from guest addresses. Those
+  segments are now loaded into the flat window at startup (`segments.bin`).
+- **Virtual dispatch** (`ngage_vcall`): reads an object's vtable pointer and calls the slot,
+  so the framework↔game virtual-method dance works.
+
+With those, calling the app's single export **`NewApplication()` executes end-to-end**:
+it `operator new`s the app object, runs the (stubbed) `CEikApplication` ctor, installs the
+vtable, returns a valid object. Driving the next step — **`CreateDocumentL` dispatches
+correctly through the vtable** (`+0x10`).
+
 ## What's still between here and the game drawing itself
 
-The pixel *pipeline* works, but SonicN's own draw code only runs after the **S60 app
-framework boots**: the active scheduler loop, `CCoeEnv`/window-server connection, and the
-`CEikApplication → CAknAppUi → CCoeControl` chain that ends in `CCoeControl::Draw`. That
-bootstrap (CONE/EIKCORE/AVKON, ~120 imports) is the next big HLE block. The
-nested-`TRAP` lifter hook also lands in here, since the framework leans on leaves.
+SonicN's draw code runs only after the **S60 app framework boots**: walk the
+`CEikApplication → document → CAknAppUi → CCoeControl` override chain (each a vtable
+dispatch into game code), stand up the **active scheduler** + the game's **`CPeriodic`**
+tick (its render loop — no `CActiveScheduler::Start` is imported, so the loop is a periodic
+timer), and reach `CCoeControl::Draw`. That chain (CONE/EIKCORE/AVKON, ~120 imports) is the
+remaining block. The nested-`TRAP` lifter hook lands here too, since the framework leans on
+leaves. The framebuffer pipeline it will feed already works (above).
 
 | Status | Meaning |
 |---|---|

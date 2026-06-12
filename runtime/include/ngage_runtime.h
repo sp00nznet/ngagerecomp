@@ -99,6 +99,9 @@ typedef struct { uint32_t ptr; uint32_t len; uint32_t maxlen; } ngage_desc_t;
 ngage_desc_t ngage_desc(ngage_cpu_t* c, uint32_t addr);
 void         ngage_desc_setlen(ngage_cpu_t* c, uint32_t addr, uint32_t len);
 
+/* ---- image data ---- */
+int  ngage_load_image(ngage_cpu_t* c, const char* segments_bin);  /* segs -> guest mem; count or -1 */
+
 /* ---- host file backing for EFSRV ---- */
 void ngage_fs_mount(const char* host_root);   /* directory the guest filesystem maps to */
 
@@ -124,6 +127,7 @@ void     ngage_cleanup_unwind_to(ngage_cpu_t* c, int level);
 void ngage_register(uint32_t guest_addr, ngage_fn fn);   /* populate the table at startup */
 void ngage_call(ngage_cpu_t* c, uint32_t guest_addr);    /* generated code calls this for bl / indirect / tail */
 void ngage_game_register(void);                          /* register all lifted funcs (generated) */
+uint32_t ngage_vcall(ngage_cpu_t* c, uint32_t object, uint32_t voffset); /* C++ virtual dispatch */
 
 /* Called by generated code for anything the lifter could not translate. */
 void ngage_unimplemented(ngage_cpu_t* c, uint32_t guest_addr, const char* what);
