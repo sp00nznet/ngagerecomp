@@ -90,11 +90,19 @@ init and **loads its actual graphics assets** — `action_char4.bin` (3.6 MB of 
 graphics), `action_char8.bin`, `etcdata.bin` (levels), sound — through EFSRV, then runs its
 sprite/tile-setup code (`sub_1000B188`/`sub_100EBCC4`).
 
-**Honest state:** the next fault is a null-deref in that sprite-setup path — the ongoing
-HLE grind, now deep in the real gameplay data path. The earlier captured frame is still a
-blank clear; recognizable graphics need the sprite-decode path to run, which is the current
-frontier. The pixel pipeline, asset I/O, timing, and game-loop are all proven with real
-game code.
+**Honest state.** A **soft memory-guard mode** (`-DNGAGE_MEM_GUARD` + `ngage_soft_set(1)`:
+OOB reads return 0, OOB writes drop, both counted) lets the game run *past* the sprite-engine
+faults: it then runs **1400+ frames, stable**. But the screen stays blank — there's a burst
+of **~880k OOB reads** in the sprite blitter (`sub_1000C760`→`sub_100EBCC4`), all from a
+**null source pointer**. So the game's sprite descriptors have null pixel-data pointers: the
+loaded `action_char*.bin` assets aren't linked into the sprites.
+
+That linkage is deep, game-specific reverse engineering (SonicN's sprite/tile data format and
+how its asset blobs map to sprite descriptors), and the actual screen surface may also be the
+NOKIAFC framebuffer rather than the CFbsBitmap we capture. **Everything generalizable is
+done** — CPU lift, boot, game loop, timing, asset I/O, the pixel pipeline — all proven with
+real game code. Recognizable gameplay graphics are now a per-game art-pipeline effort, not
+more framework HLE.
 
 Added for the bootstrap: **descriptors** (`hle/descriptors.c`), the **CPeriodic** game-loop
 timer + a pump (`hle/scheduler.c`), `CEikAppUi::ApplicationRect` (`hle/coe.c`), and the

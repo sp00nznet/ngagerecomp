@@ -14,6 +14,17 @@ extern int ngage_calldepth;
 
 void ngage_mem_guard_init(uint32_t lo, uint32_t hi) { ngage_mem_lo = lo; ngage_mem_hi = hi; }
 
+/* soft mode: OOB accesses return 0 / are dropped instead of aborting (to run past nulls) */
+int ngage_soft_guard = 0;
+static long g_soft_reads = 0, g_soft_writes = 0;
+void ngage_soft_set(int on) { ngage_soft_guard = on; }
+long ngage_soft_reads(void)  { return g_soft_reads; }
+long ngage_soft_writes(void) { return g_soft_writes; }
+void ngage_soft_hit(uint32_t addr, int size, int write) {
+    (void)addr; (void)size;
+    if (write) g_soft_writes++; else g_soft_reads++;
+}
+
 /* write watchpoint: report the call stack when a chosen guest address or value is written */
 uint32_t ngage_watch_addr = 0, ngage_watch_val = 0;
 int ngage_watch_on = 0;
