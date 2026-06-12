@@ -72,7 +72,8 @@ We don't start from scratch on the HLE: the open-source [EKA2L1](https://github.
 - [x] **EFSRV file reads** — host-backed `RFile::Open`/`Read`/`Size`/`Seek` with full Symbian descriptor decode (`desc.c`); reads real assets byte-exact
 - [x] **Framebuffer pipeline** — `CFbsBitmap` with a real guest pixel buffer + `DataAddress`, NOKIAFC flip, and a presenter (`framebuffer.c`) converting EColor4K/64K/Gray256 → RGB. Verified: a guest-rendered bitmap flips to a correct image. **45/233 shims**
 - [x] **Game code runs** — image-data loader (`image.c`) + virtual dispatch (`ngage_vcall`); the app's `NewApplication()` executes and `CreateDocumentL` dispatches through the vtable
-- [ ] Walk the app-framework override chain (document → CAknAppUi → CCoeControl) + active scheduler + the game's `CPeriodic` tick → `CCoeControl::Draw`
+- [x] **App init chain traced + driven** — `CPeriodic` game-loop timer + pump, descriptor constructors, `ApplicationRect`; driving `AppUi::ConstructL` executes into the control construction (**66/233 shims**). Bring-up is now crash-driven (a call-trace ring locates each fault)
+- [ ] Finish the construction path → the game's `CPeriodic` tick renders a frame
 - [ ] Nested `TRAP` recovery (inline setjmp at the guest TRAP site — a lifter hook)
 - [ ] First frame on screen from a real game
 - [ ] Per-game config format + docs

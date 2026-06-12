@@ -19,6 +19,10 @@ static ngage_entry* g_tab = 0;
 static size_t g_n = 0, g_cap = 0;
 static int g_dirty = 0;
 
+/* lightweight call trace (debug aid) — last addresses dispatched through ngage_call */
+uint32_t ngage_trace[32];
+unsigned ngage_trace_pos = 0;
+
 void ngage_register(uint32_t addr, ngage_fn fn) {
     if (g_n == g_cap) {
         g_cap = g_cap ? g_cap * 2 : 1024;
@@ -36,6 +40,7 @@ static int cmp_entry(const void* a, const void* b) {
 }
 
 void ngage_call(ngage_cpu_t* c, uint32_t addr) {
+    ngage_trace[ngage_trace_pos++ & 31] = addr;
     if (g_dirty) { qsort(g_tab, g_n, sizeof(*g_tab), cmp_entry); g_dirty = 0; }
     size_t lo = 0, hi = g_n;
     while (lo < hi) {

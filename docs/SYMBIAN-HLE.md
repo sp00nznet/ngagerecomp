@@ -68,7 +68,13 @@ generated code or shims.
 
 ## Status
 
-**45 / 233 implemented**, 188 named-stubbed (`runtime/src/hle/*` + `runtime/src/`).
+**66 / 233 implemented**, 167 named-stubbed (`runtime/src/hle/*` + `runtime/src/`).
+
+Added for the bootstrap: **descriptors** (`hle/descriptors.c`: TPtr8/16, TPtrC16, TBuf,
+SetLength, PtrZ), the **active scheduler / CPeriodic** game-loop timer + a pump
+(`hle/scheduler.c`), and `CEikAppUi::ApplicationRect` (`hle/coe.c`). See the per-game
+[boot-chain trace](https://github.com/sp00nznet/sonicn-ngage/blob/main/docs/BOOT-CHAIN.md).
+
 
 - **mem:** `memcpy`, `memset`, `Mem::FillZ`
 - **heap / new / delete:** `CBase::operator new` (zeroed), `CBase::operator new + TLeave`,

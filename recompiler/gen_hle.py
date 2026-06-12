@@ -64,6 +64,30 @@ IMPLEMENTED = {
     "SetShadowMode__9CFbsBitGci": "hle_BitGc_noop",
     "SetUserDisplayMode__9CFbsBitGc12TDisplayMode": "hle_BitGc_noop",
     "NOKIAFC_1": "hle_NOKIAFC_present",
+    # active scheduler / CPeriodic / CActive / RTimer
+    "NewL__9CPeriodici": "hle_CPeriodic_NewL",
+    "Start__9CPeriodicG27TTimeIntervalMicroSeconds32T1G9TCallBack": "hle_CPeriodic_Start",
+    "Add__16CActiveSchedulerP7CActive": "hle_sched_noop",
+    "SetActive__7CActive": "hle_sched_noop",
+    "Cancel__7CActive": "hle_sched_noop",
+    "__7CActivei": "hle_sched_noop",
+    "_._7CActive": "hle_sched_noop",
+    "RunError__7CActivei": "hle_sched_noop",
+    "CreateLocal__6RTimer": "hle_sched_noop",
+    "After__6RTimerR14TRequestStatusG27TTimeIntervalMicroSeconds32": "hle_sched_noop",
+    "Cancel__6RTimer": "hle_sched_noop",
+    # control framework
+    "ApplicationRect__C9CEikAppUi": "hle_ApplicationRect",
+    # descriptors
+    "__5TPtr8PUci": "hle_TPtr8_pm",
+    "__5TPtr8PUcii": "hle_TPtr8_plm",
+    "__6TPtr16PUsi": "hle_TPtr16_pm",
+    "__6TPtr16PUsii": "hle_TPtr16_plm",
+    "__7TPtrC16PCUs": "hle_TPtrC16_z",
+    "__9TBufBase8i": "hle_TBufBase",
+    "__10TBufBase16i": "hle_TBufBase",
+    "SetLength__5TDes8i": "hle_TDes_SetLength",
+    "PtrZ__5TDes8": "hle_TDes8_PtrZ",
 }
 
 

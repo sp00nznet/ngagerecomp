@@ -67,6 +67,19 @@ void hle_RFbsSession_Connect(ngage_cpu_t*);     /* RFbsSession::Connect() (ord 1
 void hle_CFbsDevice_CreateContext(ngage_cpu_t*);/* CFbsDevice::CreateContext(CFbsBitGc*&)*/
 void hle_BitGc_noop(ngage_cpu_t*);              /* Activate/SetDither/SetShadow/SetMode  */
 void hle_NOKIAFC_present(ngage_cpu_t*);         /* NOKIAFC ordinal 1 — full-screen flip  */
+/* active scheduler / CPeriodic (hle/scheduler.c) */
+void hle_CPeriodic_NewL(ngage_cpu_t*);          /* CPeriodic::NewL(TInt)                 */
+void hle_CPeriodic_Start(ngage_cpu_t*);         /* CPeriodic::Start(delay, interval, cb) */
+void hle_sched_noop(ngage_cpu_t*);              /* CActive/CActiveScheduler/RTimer no-ops*/
+int  ngage_pump_periodics(ngage_cpu_t*, int count);  /* drive the game loop N ticks      */
+int  ngage_periodic_count(void);
+/* control framework (hle/coe.c) */
+void hle_ApplicationRect(ngage_cpu_t*);         /* CEikAppUi::ApplicationRect() -> TRect */
+/* descriptors (hle/descriptors.c) */
+void hle_TPtr8_pm(ngage_cpu_t*);    void hle_TPtr8_plm(ngage_cpu_t*);
+void hle_TPtr16_pm(ngage_cpu_t*);   void hle_TPtr16_plm(ngage_cpu_t*);
+void hle_TPtrC16_z(ngage_cpu_t*);   void hle_TBufBase(ngage_cpu_t*);
+void hle_TDes_SetLength(ngage_cpu_t*); void hle_TDes8_PtrZ(ngage_cpu_t*);
 
 #ifdef __cplusplus
 }
