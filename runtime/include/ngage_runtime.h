@@ -15,6 +15,12 @@
 extern "C" {
 #endif
 
+/* N-Gage image base. The flat model biases the backing buffer by this, so a guest
+ * address indexes directly: ngage_*(c, addr) touches (c->mem + addr). Set
+ * c->mem = backing_buffer - NGAGE_IMAGE_BASE for a window starting at the image.
+ * (A paged model can replace this later without touching generated code.) */
+#define NGAGE_IMAGE_BASE 0x10000000u
+
 /* ---- guest memory (little-endian) ---- */
 static inline uint32_t ngage_r32(ngage_cpu_t* c, uint32_t a) {
     const uint8_t* p = c->mem + a;

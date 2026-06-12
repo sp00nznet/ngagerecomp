@@ -65,8 +65,9 @@ We don't start from scratch on the HLE: the open-source [EKA2L1](https://github.
 - [x] IDA bridge (`extract.py`) + **ARMv4 lifter** (`lift.py`) — functions lift to C, compile under `clang -Wall`, and round-trip correctly
 - [x] Control flow (branches → labels/`goto`, calls → dispatch, returns), stack ops, writeback, multiply — **99.94% of instructions, 97.8% of all 2,621 functions, zero exceptions**; verified by executing a lifted `memset` + dispatch call
 - [x] NGageRuntime core: register/flag/memory model + guest→native dispatch (`runtime/`)
-- [ ] Register-amount shifts / `RRX` (the 141 residual stubs)
-- [ ] Symbian HLE bring-up set (process/heap, file-server reads, framebuffer present, key input) — unblocked: the firmware system DLLs give the exact ordinal→signature map
+- [x] Whole-binary lift compiles clean under `clang -Wall` (all 2,621 functions / 247k lines)
+- [x] **Symbian HLE foundation** — IAT self-pointer dispatch (`gen_hle.py`), named-stub diagnostics for all 233 imports, base-biased memory, first real shims (`memcpy`/`memset`/`Mem::FillZ`), verified through the game's indirect call path
+- [ ] Symbian HLE: EUSER heap + `TRAP`/cleanup-stack (the leave model), then EFSRV reads, then framebuffer + input
 - [ ] First frame on screen from a real game
 - [ ] Per-game config format + docs
 - [ ] Second title → prove the framework generalizes

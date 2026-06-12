@@ -14,6 +14,7 @@
 /recompiler/functions.json
 /recompiler/*.json
 /recompiler/generated*.c
+/recompiler/hle_generated.c
 /**/generated/
 
 # NEVER commit game binaries or assets — this is a tool, you bring your own dump.
