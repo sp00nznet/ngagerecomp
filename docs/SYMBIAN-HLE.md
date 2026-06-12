@@ -68,7 +68,7 @@ generated code or shims.
 
 ## Status
 
-**32 / 233 implemented**, 201 named-stubbed (`runtime/src/hle/*` + `runtime/src/`).
+**45 / 233 implemented**, 188 named-stubbed (`runtime/src/hle/*` + `runtime/src/`).
 
 - **mem:** `memcpy`, `memset`, `Mem::FillZ`
 - **heap / new / delete:** `CBase::operator new` (zeroed), `CBase::operator new + TLeave`,
@@ -82,6 +82,18 @@ generated code or shims.
   `Size`/`Seek`/`SetSize`/`Flush`, `RFs::Delete`/`MkDir`, `RFsBase::Close` — host-file
   backing under a mounted root (`hle/efsrv.c`), with full Symbian **descriptor** decode
   (`desc.c`: TBufC/TPtrC/TPtr/TBuf/TBufCPtr → flat ptr/len/maxlen).
+- **graphics (FBSCLI/BITGDI/NOKIAFC):** `CFbsBitmap` ctor/`Create`/`DataAddress`/
+  `SizeInPixels`/`DisplayMode`/`Header`, `RFbsSession::Connect`, `CFbsDevice::CreateContext`
+  + the BitGc setters, and `NOKIAFC` flip (`hle/fbserv.c`). `CFbsBitmap::Create` allocates
+  a real guest pixel buffer; the game software-renders into `DataAddress()`; the flip runs
+  the framebuffer presenter (`framebuffer.c`: EColor4K/EColor64K/EGray256/EColor16MU →
+  RGB888, DWORD-aligned scanlines). The pipeline is verified end-to-end — a bitmap rendered
+  in the guest and flipped produces a correct image:
+
+  ![pixel pipeline proof](pixel-pipeline-proof.png)
+
+  *(176×208 frame: guest writes RGB565 into the CFbsBitmap buffer, present converts + emits
+  it. This is the path SonicN's own render code will drive once the app framework boots.)*
 
 Beyond the HLE imports, two generators wire the recompiled program together:
 `gen_register.py` registers all 2,621 lifted functions at their guest addresses (so the
@@ -89,9 +101,18 @@ game calls itself through dispatch), and dispatch is a lazily-sorted binary sear
 
 Verified: heap alloc/free/reuse; a `LeaveIfError(-4)` deep in a call unwinds through
 `ngage_run`, runs the cleanup stack, returns the code; the game **calls its own
-functions** by address; and it **reads a real asset file** (`volume.mbm`: correct size +
-byte-exact content) through `RFile::Open`/`Size`/`Read`. The whole lifted game + runtime
-+ HLE link into **one 6.3 MB executable** that runs its init path.
+functions** by address; it **reads a real asset file** (`volume.mbm`: correct size +
+byte-exact content) through `RFile::Open`/`Size`/`Read`; and the **bitmap→present pixel
+pipeline** produces a correct frame (above). The whole lifted game + runtime + HLE link
+into **one executable** that runs its init path.
+
+## What's still between here and the game drawing itself
+
+The pixel *pipeline* works, but SonicN's own draw code only runs after the **S60 app
+framework boots**: the active scheduler loop, `CCoeEnv`/window-server connection, and the
+`CEikApplication → CAknAppUi → CCoeControl` chain that ends in `CCoeControl::Draw`. That
+bootstrap (CONE/EIKCORE/AVKON, ~120 imports) is the next big HLE block. The
+nested-`TRAP` lifter hook also lands in here, since the framework leans on leaves.
 
 | Status | Meaning |
 |---|---|

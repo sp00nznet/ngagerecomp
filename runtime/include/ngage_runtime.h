@@ -102,6 +102,17 @@ void         ngage_desc_setlen(ngage_cpu_t* c, uint32_t addr, uint32_t len);
 /* ---- host file backing for EFSRV ---- */
 void ngage_fs_mount(const char* host_root);   /* directory the guest filesystem maps to */
 
+/* ---- framebuffer presentation ----
+ * TDisplayMode values we convert. N-Gage screen is 176x208; games typically render in
+ * EColor4K (12-bit) or EColor64K (16-bit RGB565). present() reads the guest pixel buffer,
+ * converts to RGB, and pushes a frame to the host (PPM dump now; SDL backend can slot in). */
+enum { NGAGE_DM_GRAY256 = 4, NGAGE_DM_COLOR256 = 6, NGAGE_DM_COLOR64K = 7,
+       NGAGE_DM_COLOR16M = 8, NGAGE_DM_COLOR4K = 10, NGAGE_DM_COLOR16MU = 11 };
+void ngage_fb_init(const char* out_dir);                       /* where frames are written */
+int  ngage_fb_bytewidth(int width, int mode);                  /* DWORD-aligned scanline bytes */
+void ngage_present(ngage_cpu_t* c, uint32_t pixels, int w, int h, int mode);
+const uint8_t* ngage_fb_rgb(int* w, int* h);                   /* latest frame as RGB888 (host) */
+
 /* ---- Symbian leave / cleanup-stack ---- */
 int      ngage_run(ngage_cpu_t* c, ngage_fn entry);   /* top-level trap; returns leave code or 0 */
 void     ngage_leave(ngage_cpu_t* c, int32_t reason); /* non-local unwind to nearest trap (no return) */

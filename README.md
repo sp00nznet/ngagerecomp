@@ -69,9 +69,10 @@ We don't start from scratch on the HLE: the open-source [EKA2L1](https://github.
 - [x] **Symbian HLE foundation** — IAT self-pointer dispatch (`gen_hle.py`), named-stub diagnostics for all 233 imports, base-biased memory, verified through the game's indirect call path
 - [x] **EUSER heap + leave model** — guest allocator (`heap.c`), `new`/`delete`/`AllocL`, and the `TRAP`/`Leave`/cleanup-stack machinery (`kernel.c`, setjmp/longjmp)
 - [x] **Function registry + dispatch** — `gen_register.py` registers all 2,621 functions; binary-search dispatch; the game calls itself by address
-- [x] **EFSRV file reads** — host-backed `RFile::Open`/`Read`/`Size`/`Seek` with full Symbian descriptor decode (`desc.c`); reads real assets byte-exact. **32/233 shims**; whole game + runtime + HLE = one 6.3 MB executable
+- [x] **EFSRV file reads** — host-backed `RFile::Open`/`Read`/`Size`/`Seek` with full Symbian descriptor decode (`desc.c`); reads real assets byte-exact
+- [x] **Framebuffer pipeline** — `CFbsBitmap` with a real guest pixel buffer + `DataAddress`, NOKIAFC flip, and a presenter (`framebuffer.c`) converting EColor4K/64K/Gray256 → RGB. Verified: a guest-rendered bitmap flips to a correct image. **45/233 shims**
+- [ ] S60 app-framework bootstrap (active scheduler + CONE/EIKCORE/AVKON) → the game's own `CCoeControl::Draw` runs
 - [ ] Nested `TRAP` recovery (inline setjmp at the guest TRAP site — a lifter hook)
-- [ ] Framebuffer path (NOKIAFC/BITGDI/FBSCLI) + input → first frame
 - [ ] First frame on screen from a real game
 - [ ] Per-game config format + docs
 - [ ] Second title → prove the framework generalizes

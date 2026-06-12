@@ -50,6 +50,20 @@ IMPLEMENTED = {
     "Seek__C5RFile5TSeekRi": "hle_RFile_Seek",
     "SetSize__5RFilei": "hle_RFile_SetSize",
     "Flush__5RFile": "hle_RFile_Flush",
+    # FBSCLI / BITGDI / NOKIAFC — graphics
+    "__10CFbsBitmap": "hle_CFbsBitmap_ctor",
+    "Create__10CFbsBitmapRC5TSize12TDisplayMode": "hle_CFbsBitmap_Create",
+    "DataAddress__C10CFbsBitmap": "hle_CFbsBitmap_DataAddress",
+    "DisplayMode__C10CFbsBitmap": "hle_CFbsBitmap_DisplayMode",
+    "SizeInPixels__C10CFbsBitmap": "hle_CFbsBitmap_SizeInPixels",
+    "Header__C10CFbsBitmap": "hle_CFbsBitmap_Header",
+    "FBSCLI_156": "hle_RFbsSession_Connect",
+    "CreateContext__10CFbsDeviceRP9CFbsBitGc": "hle_CFbsDevice_CreateContext",
+    "Activate__9CFbsBitGcP10CFbsDevice": "hle_BitGc_noop",
+    "SetDitherOrigin__9CFbsBitGcRC6TPoint": "hle_BitGc_noop",
+    "SetShadowMode__9CFbsBitGci": "hle_BitGc_noop",
+    "SetUserDisplayMode__9CFbsBitGc12TDisplayMode": "hle_BitGc_noop",
+    "NOKIAFC_1": "hle_NOKIAFC_present",
 }
 
 

@@ -56,6 +56,17 @@ void hle_RFile_Size(ngage_cpu_t*);          /* RFile::Size(TInt&)               
 void hle_RFile_Seek(ngage_cpu_t*);          /* RFile::Seek(TSeek, TInt&)                 */
 void hle_RFile_SetSize(ngage_cpu_t*);       /* RFile::SetSize(TInt)                      */
 void hle_RFile_Flush(ngage_cpu_t*);         /* RFile::Flush()                            */
+/* FBSCLI / BITGDI / NOKIAFC — graphics (hle/fbserv.c) */
+void hle_CFbsBitmap_ctor(ngage_cpu_t*);         /* CFbsBitmap::CFbsBitmap()              */
+void hle_CFbsBitmap_Create(ngage_cpu_t*);       /* Create(const TSize&, TDisplayMode)    */
+void hle_CFbsBitmap_DataAddress(ngage_cpu_t*);  /* DataAddress() -> pixel buffer         */
+void hle_CFbsBitmap_DisplayMode(ngage_cpu_t*);  /* DisplayMode()                         */
+void hle_CFbsBitmap_SizeInPixels(ngage_cpu_t*); /* SizeInPixels() -> TSize               */
+void hle_CFbsBitmap_Header(ngage_cpu_t*);       /* Header() -> SEpocBitmapHeader         */
+void hle_RFbsSession_Connect(ngage_cpu_t*);     /* RFbsSession::Connect() (ord 156)      */
+void hle_CFbsDevice_CreateContext(ngage_cpu_t*);/* CFbsDevice::CreateContext(CFbsBitGc*&)*/
+void hle_BitGc_noop(ngage_cpu_t*);              /* Activate/SetDither/SetShadow/SetMode  */
+void hle_NOKIAFC_present(ngage_cpu_t*);         /* NOKIAFC ordinal 1 — full-screen flip  */
 
 #ifdef __cplusplus
 }
