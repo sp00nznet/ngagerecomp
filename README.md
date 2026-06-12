@@ -50,9 +50,18 @@ We don't start from scratch on the HLE: the open-source [EKA2L1](https://github.
 
 🚧 **Early scaffolding.** This repo is the framework; individual game ports live in their own repos (e.g. the first target, [`sonicn-ngage`](https://github.com/sp00nznet/sonicn-ngage)). See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) and [`docs/SYMBIAN-HLE.md`](docs/SYMBIAN-HLE.md) for the plan and the honest list of unknowns.
 
+## Toolchain
+
+- **IDA Professional 9.1** (headless idalib) — the analysis front end. Its EPOC loader
+  parses the `E32Image`, recovers functions, demangles the import ordinals, and
+  Hex-Rays decompiles ARM as an oracle. See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) §0.
+- **Ghidra 12** — fallback / cross-check.
+- **EKA2L1** — open-source N-Gage emulator, used as a reference oracle and the de-facto
+  spec for the Symbian HLE functions. Harness in [`harness/`](harness/).
+
 ## Roadmap
 
-- [ ] `E32Image` parser (header, UIDs, code/data sections, import + reloc tables) — *ARMv4, uncompressed first*
+- [x] Confirm IDA loads an N-Gage `.app` and recovers functions + imports *(SonicN: 2,621 funcs, 233 imports)*
 - [ ] ARMv4T instruction lifter → C (start with the subset SonicN's `.app` actually uses)
 - [ ] NGageRuntime core: register/flag/memory model + dispatch
 - [ ] Symbian HLE: bring-up set (process/heap, file server reads, framebuffer present, key input)

@@ -4,9 +4,29 @@ NGageRecomp follows the proven **static recompilation** shape: do the hard analy
 
 ## The pipeline
 
+### 0. Tooling — IDA does the analysis front end
+
+We don't hand-roll an `E32Image` parser or a function-recovery pass. **IDA
+Professional 9.1** has a built-in EPOC/E32Image loader; run headlessly (idalib) it
+gives us, for free:
+
+- the parsed image (sections, relocations, entry points),
+- **function boundaries** (2,621 for SonicN),
+- the **import table with ordinals demangled** to Symbian SDK signatures, and
+- **Hex-Rays decompilation** of any ARM function — a ready-made oracle to check the
+  lift against.
+
+So the recompiler's job narrows to: take IDA's function list + bytes, **lift each
+function's ARM to C**, and link against the runtime. IDA is the front end; we own the
+lifter and the runtime. (Ghidra 12 is a fallback / cross-check.)
+
+For reference behavior we keep **EKA2L1** (open-source Symbian/N-Gage emulator) on
+hand as both a runtime oracle and the de-facto spec for the HLE functions.
+
 ### 1. Front end — `E32Image` parsing (`recompiler/`)
 
-Symbian executables are `E32Image` files. The header we care about (EPOC release 6 / EKA1, which the original N-Gage uses):
+> Superseded for v1 by IDA (§0) — kept as the format reference. The header we care
+about (EPOC release 6 / EKA1, which the original N-Gage uses):
 
 | Field | SonicN value | Meaning |
 |---|---|---|
