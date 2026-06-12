@@ -73,9 +73,11 @@ generated code or shims.
 synthetic no-op vtable (reusable pattern for any HLE-created C++ object the game calls
 virtually). Three lifter bugs fixed along the way (see the recompiler README).
 
-The bootstrap now runs **through the whole audio active-object setup and into the control's
-`ConstructL`** (`sub_10016990`), which creates the game's `CFbsBitmap`s — the next fault is
-an HLE gap there (a graphics object a stub returns null for), not a lifter bug.
+**The app + control `ConstructL` now completes cleanly (`rc=0`), the game's `CPeriodic`
+render-loop timer registers, and the game tick runs.** Getting here needed `CFbsBitmap::Load`
+(FBSCLI ord 156) to set up a bitmap as EColor4K, plus jump-table lowering in the lifter
+(SonicN's tick is full of switches). The current fault is a null-deref deeper in the tick's
+render path — the ongoing HLE grind, now inside real game rendering.
 
 Added for the bootstrap: **descriptors** (`hle/descriptors.c`), the **CPeriodic** game-loop
 timer + a pump (`hle/scheduler.c`), `CEikAppUi::ApplicationRect` (`hle/coe.c`), and the

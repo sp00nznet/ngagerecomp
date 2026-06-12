@@ -63,7 +63,7 @@ void hle_CFbsBitmap_DataAddress(ngage_cpu_t*);  /* DataAddress() -> pixel buffer
 void hle_CFbsBitmap_DisplayMode(ngage_cpu_t*);  /* DisplayMode()                         */
 void hle_CFbsBitmap_SizeInPixels(ngage_cpu_t*); /* SizeInPixels() -> TSize               */
 void hle_CFbsBitmap_Header(ngage_cpu_t*);       /* Header() -> SEpocBitmapHeader         */
-void hle_RFbsSession_Connect(ngage_cpu_t*);     /* RFbsSession::Connect() (ord 156)      */
+void hle_CFbsBitmap_Load(ngage_cpu_t*);          /* FBSCLI ord 156 = CFbsBitmap::Load */
 void hle_CFbsDevice_CreateContext(ngage_cpu_t*);/* CFbsDevice::CreateContext(CFbsBitGc*&)*/
 void hle_BitGc_noop(ngage_cpu_t*);              /* Activate/SetDither/SetShadow/SetMode  */
 void hle_NOKIAFC_present(ngage_cpu_t*);         /* NOKIAFC ordinal 1 — full-screen flip  */

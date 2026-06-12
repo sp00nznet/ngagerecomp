@@ -57,7 +57,7 @@ IMPLEMENTED = {
     "DisplayMode__C10CFbsBitmap": "hle_CFbsBitmap_DisplayMode",
     "SizeInPixels__C10CFbsBitmap": "hle_CFbsBitmap_SizeInPixels",
     "Header__C10CFbsBitmap": "hle_CFbsBitmap_Header",
-    "FBSCLI_156": "hle_RFbsSession_Connect",
+    "FBSCLI_156": "hle_CFbsBitmap_Load",
     "CreateContext__10CFbsDeviceRP9CFbsBitGc": "hle_CFbsDevice_CreateContext",
     "Activate__9CFbsBitGcP10CFbsDevice": "hle_BitGc_noop",
     "SetDitherOrigin__9CFbsBitGcRC6TPoint": "hle_BitGc_noop",

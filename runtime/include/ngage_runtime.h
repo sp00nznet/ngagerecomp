@@ -28,8 +28,16 @@ void ngage_mem_fault(uint32_t addr, int size, int write);   /* prints + aborts *
 static inline void ngage_chk(uint32_t a, int sz, int w) {
     if (a < ngage_mem_lo || a + (uint32_t)sz > ngage_mem_hi) ngage_mem_fault(a, sz, w);
 }
+extern uint32_t ngage_watch_addr, ngage_watch_val; extern int ngage_watch_on;
+void ngage_watch_set(uint32_t a);
+void ngage_watch_setval(uint32_t v);
+void ngage_watch_hit(uint32_t a, uint32_t v);
+#define ngage_watch(a, v) do { \
+    if (ngage_watch_on && ((ngage_watch_addr && (a) == ngage_watch_addr) || \
+                           (ngage_watch_val && (v) == ngage_watch_val))) ngage_watch_hit((a), (v)); } while (0)
 #else
 #define ngage_chk(a, sz, w) ((void)0)
+#define ngage_watch(a, v)   ((void)0)
 #endif
 
 /* ---- guest memory (little-endian) ---- */
@@ -46,7 +54,7 @@ static inline uint16_t ngage_r16(ngage_cpu_t* c, uint32_t a) {
 static inline uint8_t  ngage_r8 (ngage_cpu_t* c, uint32_t a) { ngage_chk(a, 1, 0); return c->mem[a]; }
 
 static inline void ngage_w32(ngage_cpu_t* c, uint32_t a, uint32_t v) {
-    ngage_chk(a, 4, 1);
+    ngage_chk(a, 4, 1); ngage_watch(a, v);
     uint8_t* p = c->mem + a;
     p[0]=(uint8_t)v; p[1]=(uint8_t)(v>>8); p[2]=(uint8_t)(v>>16); p[3]=(uint8_t)(v>>24);
 }

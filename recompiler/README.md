@@ -109,9 +109,13 @@ compile can't. Three found and fixed this way, each affecting *any* game:
 2. **Scaled index dropped** (`ldr r0,[r6,r5,lsl #2]`): Capstone reports the index shift on
    the *operand* (`op.shift`), not `mem.lshift` — reading the wrong field silently produced
    `r6 + r5` instead of `r6 + r5*4`. Affects all array indexing.
-3. **ARMv4 indirect call mis-lifted as a tail return** (`mov lr, pc; bx ip`): `bx reg` was
-   emitted as `…; return;`, skipping the function epilogue that restores `r4`–`r11`. Fix:
-   when a `bx reg` is preceded by `mov lr, pc`, it's a call-and-continue, not a return.
+3. **ARMv4 indirect call mis-lifted as a tail return** (`mov lr, pc; bx ip`, incl. the
+   conditional `bxne` form): `bx reg` was emitted as `…; return;`, skipping the epilogue
+   that restores `r4`–`r11`. Fix: a `bx reg` preceded by `mov lr, pc` is call-and-continue.
+4. **Jump tables** (`ldr pc, [pc, rN, lsl #2]`, incl. `ldrls`): these switch dispatches were
+   routed through `ngage_call` (wrong — the targets are *local* labels) with a stray
+   `return`. Now lowered properly: the constant target table is read from the image and
+   emitted as a C `switch` with local `goto`s. 85 tables across SonicN.
 
 Two debug builds find these fast (see `docs/SYMBIAN-HLE.md`):
 - `-DNGAGE_MEM_GUARD` — wild guest accesses report their address + call stack.

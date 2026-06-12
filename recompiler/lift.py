@@ -95,6 +95,7 @@ class Lifter:
         self.md_t.detail = True
         self.stats = {"insns": 0, "lifted": 0, "stubbed": 0}
         self._call_continue = set()   # bx-reg addrs that are calls (mov lr,pc; bx reg)
+        self._jumptables = {}         # ldr-pc switch addrs -> (index reg, [targets])
 
     # --- operand rendering -------------------------------------------------
     def reg(self, ins, rid, pc):
@@ -177,6 +178,13 @@ class Lifter:
                         else f"ngage_call(c, {tgt:#x}u); return;")
             self.stats["lifted"] += 1
             return "    " + self._guard(cc, stmt) + cmt
+
+        # ---- jump table (ldr pc, [pc, rN, lsl #2]) -> switch with local gotos ----
+        if ins.address in self._jumptables:
+            idx, targets = self._jumptables[ins.address]
+            cases = " ".join(f"case {i}: goto L_{t:08x};" for i, t in enumerate(targets))
+            self.stats["lifted"] += 1
+            return "    " + self._guard(cc, f"switch (c->r[{idx}]) {{ {cases} }}") + cmt
 
         # ---- everything else ----
         # Strip the 2-char condition suffix so "movne"/"strhne" map to mov/strh,
@@ -440,27 +448,55 @@ class Lifter:
         # (other chunks, other functions) routes through the dispatch table.
         headset = {addr for addr, _ in decoded}
 
-        # Detect the ARMv4 indirect-CALL idiom `mov lr, pc; bx/blx reg` (or `mov pc, reg`):
-        # such a `bx reg` is a call that continues, not a tail return.
+        # Detect the ARMv4 indirect-CALL idiom `mov lr, pc; bx/blx reg`: such a `bx reg`
+        # is a call that continues, not a tail return. Works for conditional forms too
+        # (e.g. `bxne`), so the base mnemonic is taken with the cc suffix stripped.
+        def base_mnem(ins):
+            m = ins.mnemonic.split('.')[0]
+            if ins.cc in CC and len(m) > 2 and m[-2:] in CC_SUFFIX:
+                m = m[:-2]
+            return m
         self._call_continue = set()
         for i in range(len(decoded) - 1):
             a = decoded[i][1]
-            if (a.mnemonic.split('.')[0] == "mov" and len(a.operands) == 2
+            if (base_mnem(a) == "mov" and len(a.operands) == 2
                     and a.operands[0].type == ARM_OP_REG and a.operands[1].type == ARM_OP_REG
                     and regnum(a.reg_name(a.operands[0].reg)) == 14   # lr
                     and a.operands[1].reg == ARM_REG_PC):
                 b = decoded[i + 1][1]
-                if (b.mnemonic.split('.')[0] in ("bx", "blx")
+                if (base_mnem(b) in ("bx", "blx")
                         and b.operands and b.operands[0].type == ARM_OP_REG):
                     self._call_continue.add(b.address)
 
-        # Pass 1: intra-function branch targets become labels.
+        # Pass 1: intra-function branch targets become labels; lower jump tables.
         labels = set()
-        for _, ins in decoded:
+        self._jumptables = {}        # insn addr -> (index reg num, [local target addrs])
+        for addr, ins in decoded:
             if ins.group(CS_GRP_JUMP) and not ins.group(CS_GRP_CALL):
                 op = ins.operands[0]
                 if op.type == ARM_OP_IMM and (op.imm & 0xffffffff) in headset:
                     labels.add(op.imm & 0xffffffff)
+                continue
+            # `ldr pc, [pc, rN, lsl #2]` — a switch (mnemonic may carry a cc, e.g. ldrls).
+            # Read the constant table of word targets that follows; each becomes a goto.
+            lm = ins.mnemonic.split('.')[0]
+            if ins.cc in CC and len(lm) > 3 and lm[-2:] in CC_SUFFIX:
+                lm = lm[:-2]
+            if lm == "ldr" and len(ins.operands) >= 2:
+                d, mo = ins.operands[0], ins.operands[1]
+                if (d.type == ARM_OP_REG and d.reg == ARM_REG_PC
+                        and mo.type == ARM_OP_MEM and mo.mem.base == ARM_REG_PC and mo.mem.index):
+                    tbl = addr + 8 + mo.mem.disp
+                    idx = regnum(ins.reg_name(mo.mem.index))
+                    targets = []
+                    for k in range(256):
+                        t = self.mem.r32(tbl + k * 4)
+                        if t is None or t not in headset:
+                            break
+                        targets.append(t)
+                    if idx is not None and targets:
+                        self._jumptables[addr] = (idx, targets)
+                        labels.update(targets)
 
         # Pass 2: emit.
         name = "func_%08x" % start

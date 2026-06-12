@@ -14,6 +14,19 @@ extern int ngage_calldepth;
 
 void ngage_mem_guard_init(uint32_t lo, uint32_t hi) { ngage_mem_lo = lo; ngage_mem_hi = hi; }
 
+/* write watchpoint: report the call stack when a chosen guest address or value is written */
+uint32_t ngage_watch_addr = 0, ngage_watch_val = 0;
+int ngage_watch_on = 0;
+static int g_watch_count = 0;
+void ngage_watch_set(uint32_t a) { ngage_watch_addr = a; ngage_watch_on = 1; }
+void ngage_watch_setval(uint32_t v) { ngage_watch_val = v; ngage_watch_on = 1; }
+void ngage_watch_hit(uint32_t a, uint32_t v) {
+    if (g_watch_count++ > 8) return;
+    fprintf(stderr, "*** WATCH#%d: write %#x to %#x ***  call stack:\n", g_watch_count, v, a);
+    int lo = ngage_calldepth > 12 ? ngage_calldepth - 12 : 0;
+    for (int i = lo; i < ngage_calldepth; i++) fprintf(stderr, "  [%d] %#x\n", i, ngage_stack[i]);
+}
+
 void ngage_mem_fault(uint32_t addr, int size, int write) {
     fprintf(stderr, "\n*** GUEST MEM FAULT: %s %d-byte @ %#x  (valid %#x..%#x) ***\n",
             write ? "write" : "read", size, addr, ngage_mem_lo, ngage_mem_hi);

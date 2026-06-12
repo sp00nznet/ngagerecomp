@@ -68,8 +68,16 @@ void hle_CFbsBitmap_Header(ngage_cpu_t* c) {        /* SEpocBitmapHeader by valu
     c->r[0] = res;
 }
 
-/* RFbsSession::Connect() (FBSCLI ordinal 156) */
-void hle_RFbsSession_Connect(ngage_cpu_t* c) { c->r[0] = 0; }
+/* CFbsBitmap::Load(...) (FBSCLI ordinal 156): set up `this` as a loaded bitmap so the
+ * caller's DisplayMode()/SizeInPixels() return sane values and it skips its colour-convert
+ * path. SonicN's bitmaps are EColor4K; size is a default until real MBM loading lands. */
+void hle_CFbsBitmap_Load(ngage_cpu_t* c) {
+    bm_t* b = bm_find(c->r[0], 1);
+    if (!b) { c->r[0] = (uint32_t)-4; return; }
+    b->w = 256; b->h = 256; b->mode = NGAGE_DM_COLOR4K;     /* TODO: read from the MBM */
+    if (!b->buf) b->buf = ngage_alloc_zeroed(c, (uint32_t)ngage_fb_bytewidth(b->w, b->mode) * (uint32_t)b->h);
+    c->r[0] = 0;                                            /* KErrNone */
+}
 
 /* ---- BITGDI (thin: the game draws its own pixels) ---- */
 void hle_CFbsDevice_CreateContext(ngage_cpu_t* c) { /* (CFbsBitGc*& aGc) -> KErrNone */
