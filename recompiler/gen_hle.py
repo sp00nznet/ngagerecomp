@@ -14,9 +14,28 @@ import json, sys, re
 
 # Stripped import name -> implemented shim. Grow this as shims land in runtime/src/hle/.
 IMPLEMENTED = {
+    # mem
     "memcpy": "hle_memcpy",
     "memset": "hle_memset",
     "FillZ__3MemPvi": "hle_Mem_FillZ",
+    # heap / new / delete
+    "__nw__5CBaseUi": "hle_CBase_new",
+    "newL__5CBaseUi": "hle_CBase_newL",
+    "AllocL__4Useri": "hle_User_AllocL",
+    "__builtin_vec_new": "hle_vec_new",
+    "__builtin_delete": "hle_delete",
+    "__builtin_vec_delete": "hle_delete",
+    # leave / cleanup / lifecycle
+    "LeaveIfError__4Useri": "hle_User_LeaveIfError",
+    "Trap__5TTrapRi": "hle_TTrap_Trap",
+    "UnTrap__5TTrap": "hle_TTrap_UnTrap",
+    "PushL__12CleanupStackP5CBase": "hle_Cleanup_PushL",
+    "Pop__12CleanupStack": "hle_Cleanup_Pop",
+    "PopAndDestroy__12CleanupStack": "hle_Cleanup_PopAndDestroy",
+    "PopAndDestroy__12CleanupStacki": "hle_Cleanup_PopAndDestroyN",
+    "Panic__4UserRC7TDesC16i": "hle_User_Panic",
+    "Exit__4Useri": "hle_User_Exit",
+    "Close__11RHandleBase": "hle_RHandleBase_Close",
 }
 
 

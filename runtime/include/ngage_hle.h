@@ -21,9 +21,27 @@ extern "C" {
 void ngage_hle_init(ngage_cpu_t* c);
 
 /* ---- implemented shims (hand-written, runtime/src/hle/) ---- */
-void hle_memcpy(ngage_cpu_t*);      /* EUSER: memcpy(dst, src, n) -> dst                */
-void hle_memset(ngage_cpu_t*);      /* EUSER: memset(dst, c, n)   -> dst                */
-void hle_Mem_FillZ(ngage_cpu_t*);   /* EUSER: Mem::FillZ(void* p, TInt len)             */
+/* mem */
+void hle_memcpy(ngage_cpu_t*);      /* memcpy(dst, src, n) -> dst                        */
+void hle_memset(ngage_cpu_t*);      /* memset(dst, c, n)   -> dst                        */
+void hle_Mem_FillZ(ngage_cpu_t*);   /* Mem::FillZ(void* p, TInt len)                     */
+/* heap / new / delete */
+void hle_CBase_new(ngage_cpu_t*);   /* CBase::operator new(TUint) -> zeroed              */
+void hle_CBase_newL(ngage_cpu_t*);  /* CBase::operator new(TUint, TLeave) -> zeroed,leave*/
+void hle_User_AllocL(ngage_cpu_t*); /* User::AllocL(TInt) -> alloc, leave on OOM         */
+void hle_vec_new(ngage_cpu_t*);     /* operator new[](TUint)                             */
+void hle_delete(ngage_cpu_t*);      /* operator delete / delete[]                        */
+/* leave / cleanup / lifecycle */
+void hle_User_LeaveIfError(ngage_cpu_t*);   /* User::LeaveIfError(TInt)                  */
+void hle_TTrap_Trap(ngage_cpu_t*);          /* TTrap::Trap(TInt&) — see kernel.c note    */
+void hle_TTrap_UnTrap(ngage_cpu_t*);        /* TTrap::UnTrap()                           */
+void hle_Cleanup_PushL(ngage_cpu_t*);       /* CleanupStack::PushL(CBase*)               */
+void hle_Cleanup_Pop(ngage_cpu_t*);         /* CleanupStack::Pop()                       */
+void hle_Cleanup_PopAndDestroy(ngage_cpu_t*);   /* CleanupStack::PopAndDestroy()         */
+void hle_Cleanup_PopAndDestroyN(ngage_cpu_t*);  /* CleanupStack::PopAndDestroy(TInt)     */
+void hle_User_Panic(ngage_cpu_t*);          /* User::Panic(const TDesC16&, TInt)         */
+void hle_User_Exit(ngage_cpu_t*);           /* User::Exit(TInt)                          */
+void hle_RHandleBase_Close(ngage_cpu_t*);   /* RHandleBase::Close()                      */
 
 #ifdef __cplusplus
 }

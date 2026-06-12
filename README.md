@@ -66,8 +66,10 @@ We don't start from scratch on the HLE: the open-source [EKA2L1](https://github.
 - [x] Control flow (branches → labels/`goto`, calls → dispatch, returns), stack ops, writeback, multiply — **99.94% of instructions, 97.8% of all 2,621 functions, zero exceptions**; verified by executing a lifted `memset` + dispatch call
 - [x] NGageRuntime core: register/flag/memory model + guest→native dispatch (`runtime/`)
 - [x] Whole-binary lift compiles clean under `clang -Wall` (all 2,621 functions / 247k lines)
-- [x] **Symbian HLE foundation** — IAT self-pointer dispatch (`gen_hle.py`), named-stub diagnostics for all 233 imports, base-biased memory, first real shims (`memcpy`/`memset`/`Mem::FillZ`), verified through the game's indirect call path
-- [ ] Symbian HLE: EUSER heap + `TRAP`/cleanup-stack (the leave model), then EFSRV reads, then framebuffer + input
+- [x] **Symbian HLE foundation** — IAT self-pointer dispatch (`gen_hle.py`), named-stub diagnostics for all 233 imports, base-biased memory, verified through the game's indirect call path
+- [x] **EUSER heap + leave model** — guest allocator (`heap.c`), `new`/`delete`/`AllocL`, and the `TRAP`/`Leave`/cleanup-stack machinery (`kernel.c`, setjmp/longjmp); **19/233 shims**. Whole lifted game + runtime + HLE link into one executable.
+- [ ] Nested `TRAP` recovery (inline setjmp at the guest TRAP site — a lifter hook)
+- [ ] EFSRV file reads → load assets, then framebuffer (NOKIAFC/BITGDI/FBSCLI) + input
 - [ ] First frame on screen from a real game
 - [ ] Per-game config format + docs
 - [ ] Second title → prove the framework generalizes

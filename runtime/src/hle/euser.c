@@ -31,3 +31,55 @@ void hle_Mem_FillZ(ngage_cpu_t* c) {
     uint32_t p = c->r[0], n = c->r[1];
     memset(c->mem + p, 0, n);
 }
+
+/* ---- heap / new / delete (EABI: arg0=r0, return r0) ---- */
+
+/* CBase::operator new(TUint aSize) — CBase memory is zero-initialised. */
+void hle_CBase_new(ngage_cpu_t* c)  { c->r[0] = ngage_alloc_zeroed(c, c->r[0]); }
+
+/* CBase::operator new(TUint aSize, TLeave) — zeroed, leaves on OOM. */
+void hle_CBase_newL(ngage_cpu_t* c) {
+    uint32_t p = ngage_alloc_zeroed(c, c->r[0]);
+    if (!p) ngage_leave(c, -4);           /* KErrNoMemory */
+    c->r[0] = p;
+}
+
+/* User::AllocL(TInt aSize) — raw alloc (not zeroed), leaves on OOM. */
+void hle_User_AllocL(ngage_cpu_t* c) {
+    uint32_t p = ngage_alloc(c, c->r[0]);
+    if (!p) ngage_leave(c, -4);
+    c->r[0] = p;
+}
+
+void hle_vec_new(ngage_cpu_t* c) { c->r[0] = ngage_alloc(c, c->r[0]); }
+void hle_delete(ngage_cpu_t* c)  { ngage_free(c, c->r[0]); }
+
+/* ---- leave / cleanup / lifecycle ---- */
+
+/* User::LeaveIfError(TInt aReason): leave iff aReason < 0, else return it unchanged. */
+void hle_User_LeaveIfError(ngage_cpu_t* c) {
+    int32_t e = (int32_t)c->r[0];
+    if (e < 0) ngage_leave(c, e);
+    /* else: r0 already holds the (non-negative) value, which is the return */
+}
+
+/* TTrap::Trap(TInt& aResult): no-leave path returns 0. Real per-TRAP recovery needs an
+ * inline setjmp at the call site (lifter hook) — see kernel.c. */
+void hle_TTrap_Trap(ngage_cpu_t* c)   { c->r[0] = 0; }
+void hle_TTrap_UnTrap(ngage_cpu_t* c) { (void)c; }
+
+/* CleanupStack — the pushed item is a CBase* in r0. */
+void hle_Cleanup_PushL(ngage_cpu_t* c) { ngage_cleanup_push(c->r[0]); }
+void hle_Cleanup_Pop(ngage_cpu_t* c)   { (void)c; ngage_cleanup_pop(); }
+void hle_Cleanup_PopAndDestroy(ngage_cpu_t* c) {
+    uint32_t p = ngage_cleanup_pop();
+    if (p) ngage_free(c, p);              /* TODO: invoke the virtual dtor first */
+}
+void hle_Cleanup_PopAndDestroyN(ngage_cpu_t* c) {
+    uint32_t n = c->r[0];
+    while (n--) { uint32_t p = ngage_cleanup_pop(); if (p) ngage_free(c, p); }
+}
+
+void hle_User_Panic(ngage_cpu_t* c) { ngage_unimplemented(c, 0, "User::Panic"); }
+void hle_User_Exit(ngage_cpu_t* c)  { ngage_leave(c, (int32_t)c->r[0]); }   /* unwind out */
+void hle_RHandleBase_Close(ngage_cpu_t* c) { (void)c; }   /* handles are HLE-managed */

@@ -82,6 +82,21 @@ static inline uint32_t ngage_ror(uint32_t v, uint32_t amt){ amt&=0xff; if(!amt)r
 
 /* ---- guest -> native dispatch ---- */
 typedef void (*ngage_fn)(ngage_cpu_t*);
+
+/* ---- guest heap (returns guest addresses; 0 = OOM) ---- */
+void     ngage_heap_init(uint32_t base, uint32_t size);
+uint32_t ngage_alloc(ngage_cpu_t* c, uint32_t size);
+uint32_t ngage_alloc_zeroed(ngage_cpu_t* c, uint32_t size);
+void     ngage_free(ngage_cpu_t* c, uint32_t guest_ptr);
+
+/* ---- Symbian leave / cleanup-stack ---- */
+int      ngage_run(ngage_cpu_t* c, ngage_fn entry);   /* top-level trap; returns leave code or 0 */
+void     ngage_leave(ngage_cpu_t* c, int32_t reason); /* non-local unwind to nearest trap (no return) */
+void     ngage_cleanup_push(uint32_t guest_ptr);
+uint32_t ngage_cleanup_pop(void);
+int      ngage_cleanup_level(void);
+void     ngage_cleanup_unwind_to(ngage_cpu_t* c, int level);
+
 void ngage_register(uint32_t guest_addr, ngage_fn fn);   /* populate the table at startup */
 void ngage_call(ngage_cpu_t* c, uint32_t guest_addr);    /* generated code calls this for bl / indirect / tail */
 

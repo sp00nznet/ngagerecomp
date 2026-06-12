@@ -68,9 +68,21 @@ generated code or shims.
 
 ## Status
 
-**3 / 233 implemented**, 230 named-stubbed. First batch (the pure-computation EUSER
-exports, in `runtime/src/hle/euser.c`): `memcpy`, `memset`, `Mem::FillZ` — verified by
-calling `memcpy` through the real IAT indirect path.
+**19 / 233 implemented**, 214 named-stubbed (`runtime/src/hle/euser.c` + `runtime/src/`).
+
+- **mem:** `memcpy`, `memset`, `Mem::FillZ`
+- **heap / new / delete:** `CBase::operator new` (zeroed), `CBase::operator new + TLeave`,
+  `User::AllocL`, `operator new[]`, `operator delete` / `delete[]` — over a real guest
+  allocator (`heap.c`: first-fit + bump, free-list reuse, returns guest addresses)
+- **leave / cleanup / lifecycle:** `User::LeaveIfError`, `TTrap::Trap` / `UnTrap`,
+  `CleanupStack::PushL` / `Pop` / `PopAndDestroy(/N)`, `User::Exit`, `User::Panic`,
+  `RHandleBase::Close` — over the leave machinery (`kernel.c`: setjmp/longjmp trap +
+  cleanup stack)
+
+Verified: heap alloc/free/reuse; a `User::LeaveIfError(-4)` from inside a deep call
+unwinds through `ngage_run`, runs the cleanup stack (freeing a pushed allocation), and
+returns the leave code. And the **whole lifted game (2,621 functions) links with the
+runtime + HLE into one executable** that runs its init path.
 
 | Status | Meaning |
 |---|---|
