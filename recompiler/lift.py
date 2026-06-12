@@ -376,10 +376,13 @@ class Lifter:
         n = len(regs)
         low = {"ia": 0, "ib": 4, "db": -4 * n, "da": -4 * n + 4}[mode]
         has_pc = any(num == 15 for num, _ in regs)
-        s = []
+        # Snapshot the base: in real LDM/STM every element uses the ORIGINAL base, but a
+        # loaded register may BE the base (e.g. `ldm r9,{r9,r10}`), which would otherwise
+        # clobber it mid-sequence. The temp `_b` keeps all addresses on the original base.
+        s = ["{ uint32_t _b = " + b + ";"]
         for i, (num, _) in enumerate(regs):
             off = low + 4 * i
-            addr = b if off == 0 else (f"{b} + {off}" if off > 0 else f"{b} - {-off}")
+            addr = "_b" if off == 0 else (f"_b + {off}" if off > 0 else f"_b - {-off}")
             if load:
                 if num == 15:
                     s.append(f"/* pc <- [{addr}] => return */")
@@ -388,7 +391,8 @@ class Lifter:
             else:
                 s.append(f"ngage_w32(c, {addr}, c->r[{num}]);")
         if writeback:
-            s.append(f"{b} {'+=' if low >= 0 else '-='} {4 * n};")
+            s.append(f"{b} = _b {'+' if low >= 0 else '-'} {4 * n};")
+        s.append("}")
         if load and has_pc:
             s.append("return;")
         return " ".join(s)

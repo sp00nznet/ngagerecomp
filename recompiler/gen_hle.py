@@ -88,6 +88,16 @@ IMPLEMENTED = {
     "__10TBufBase16i": "hle_TBufBase",
     "SetLength__5TDes8i": "hle_TDes_SetLength",
     "PtrZ__5TDes8": "hle_TDes8_PtrZ",
+    # compiler runtime (libgcc soft-float + integer divide)
+    "__adddf3": "hle_adddf3", "__subdf3": "hle_subdf3", "__muldf3": "hle_muldf3",
+    "__divdf3": "hle_divdf3", "__negdf2": "hle_negdf2",
+    "__addsf3": "hle_addsf3", "__subsf3": "hle_subsf3", "__mulsf3": "hle_mulsf3",
+    "__floatsidf": "hle_floatsidf", "__floatsisf": "hle_floatsisf",
+    "__fixdfsi": "hle_fixdfsi", "__fixsfsi": "hle_fixsfsi",
+    "__divsi3": "hle_divsi3", "__udivsi3": "hle_udivsi3", "__modsi3": "hle_modsi3",
+    "__gedf2": "hle_cmpdf2", "__gtdf2": "hle_cmpdf2", "__ledf2": "hle_cmpdf2",
+    "__ltdf2": "hle_cmpdf2", "__nedf2": "hle_cmpdf2",
+    "__gtsf2": "hle_cmpsf2", "__lesf2": "hle_cmpsf2",
 }
 
 

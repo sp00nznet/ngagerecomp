@@ -12,6 +12,7 @@
 #include "ngage_cpu.h"
 #include "ngage_runtime.h"
 #include <stdlib.h>
+#include <stdio.h>
 
 typedef struct { uint32_t addr; ngage_fn fn; } ngage_entry;
 
@@ -39,8 +40,17 @@ static int cmp_entry(const void* a, const void* b) {
     return (x > y) - (x < y);
 }
 
+static int g_depth = 0;
+
 void ngage_call(ngage_cpu_t* c, uint32_t addr) {
     ngage_trace[ngage_trace_pos++ & 31] = addr;
+    if (++g_depth > 20000) {            /* runaway: native stack mirrors guest call depth */
+        fprintf(stderr, "\n*** RUNAWAY RECURSION (depth %d) calling %#x ***\n", g_depth, addr);
+        int n = 24;
+        for (int i = n; i > 0; i--)
+            fprintf(stderr, "  %#x\n", ngage_trace[(ngage_trace_pos - (unsigned)i) & 31]);
+        abort();
+    }
     if (g_dirty) { qsort(g_tab, g_n, sizeof(*g_tab), cmp_entry); g_dirty = 0; }
     size_t lo = 0, hi = g_n;
     while (lo < hi) {
@@ -48,7 +58,8 @@ void ngage_call(ngage_cpu_t* c, uint32_t addr) {
         if (g_tab[mid].addr < addr) lo = mid + 1;
         else hi = mid;
     }
-    if (lo < g_n && g_tab[lo].addr == addr) { g_tab[lo].fn(c); return; }
+    if (lo < g_n && g_tab[lo].addr == addr) { g_tab[lo].fn(c); g_depth--; return; }
+    g_depth--;
     /* Not a lifted function or HLE import: not-yet-lifted code or a bad pointer. */
     ngage_unimplemented(c, addr, "call to unregistered address");
 }

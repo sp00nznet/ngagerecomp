@@ -80,6 +80,14 @@ void hle_TPtr8_pm(ngage_cpu_t*);    void hle_TPtr8_plm(ngage_cpu_t*);
 void hle_TPtr16_pm(ngage_cpu_t*);   void hle_TPtr16_plm(ngage_cpu_t*);
 void hle_TPtrC16_z(ngage_cpu_t*);   void hle_TBufBase(ngage_cpu_t*);
 void hle_TDes_SetLength(ngage_cpu_t*); void hle_TDes8_PtrZ(ngage_cpu_t*);
+/* compiler runtime (hle/softfloat.c) */
+void hle_adddf3(ngage_cpu_t*); void hle_subdf3(ngage_cpu_t*); void hle_muldf3(ngage_cpu_t*);
+void hle_divdf3(ngage_cpu_t*); void hle_negdf2(ngage_cpu_t*);
+void hle_addsf3(ngage_cpu_t*); void hle_subsf3(ngage_cpu_t*); void hle_mulsf3(ngage_cpu_t*);
+void hle_floatsidf(ngage_cpu_t*); void hle_floatsisf(ngage_cpu_t*);
+void hle_fixdfsi(ngage_cpu_t*); void hle_fixsfsi(ngage_cpu_t*);
+void hle_divsi3(ngage_cpu_t*); void hle_udivsi3(ngage_cpu_t*); void hle_modsi3(ngage_cpu_t*);
+void hle_cmpdf2(ngage_cpu_t*); void hle_cmpsf2(ngage_cpu_t*);
 
 #ifdef __cplusplus
 }

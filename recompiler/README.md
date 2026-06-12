@@ -97,3 +97,18 @@ constant jump-table data is a TODO before those code paths run for real.
 
 > Generated C and `functions.json` are derived from a game image and are **gitignored** —
 > bring your own dump and produce them locally.
+
+## Correctness notes
+
+Running real game code is the lifter's true test — it surfaces bugs the per-instruction
+compile can't. One found and fixed this way: **`LDM` where the base register is also in the
+register list** (e.g. `ldm r9,{r9,r10}`). The naive emission loads `r9` first, clobbering
+the base before the second element's address is computed. The fix snapshots the base into a
+temp so every element uses the original:
+
+```c
+{ uint32_t _b = c->r[9]; c->r[9] = ngage_r32(c, _b); c->r[10] = ngage_r32(c, _b + 4); }
+```
+
+Build the runtime with `-DNGAGE_MEM_GUARD` during bring-up to turn wild guest accesses into
+located reports (faulting address + call trace) — see `docs/SYMBIAN-HLE.md`.

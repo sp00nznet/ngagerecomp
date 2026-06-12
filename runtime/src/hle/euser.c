@@ -9,13 +9,22 @@
  * on this file as it comes online — see docs/SYMBIAN-HLE.md and HLE-IMPORTS.md.
  */
 #include <string.h>
+#include <stdio.h>
 #include "ngage_cpu.h"
 #include "ngage_runtime.h"
 #include "ngage_hle.h"
 
+/* Range guard: under -DNGAGE_MEM_GUARD, validate before a raw host memcpy/memset so a
+ * wild pointer reports (with the call trace) instead of a blind host segfault. */
+static void rangechk(uint32_t addr, uint32_t n, int write) {
+    ngage_chk(addr, 1, write);
+    if (n) ngage_chk(addr + n - 1, 1, write);
+}
+
 /* memcpy(TAny* dst, const TAny* src, unsigned n) -> dst */
 void hle_memcpy(ngage_cpu_t* c) {
     uint32_t dst = c->r[0], src = c->r[1], n = c->r[2];
+    rangechk(dst, n, 1); rangechk(src, n, 0);
     memmove(c->mem + dst, c->mem + src, n);   /* memmove: tolerate overlap defensively */
     /* r0 already holds dst, which is the return value */
 }
@@ -23,12 +32,14 @@ void hle_memcpy(ngage_cpu_t* c) {
 /* memset(TAny* dst, int ch, unsigned n) -> dst */
 void hle_memset(ngage_cpu_t* c) {
     uint32_t dst = c->r[0], ch = c->r[1], n = c->r[2];
+    rangechk(dst, n, 1);
     memset(c->mem + dst, (int)(ch & 0xff), n);
 }
 
 /* Mem::FillZ(TAny* aTrg, TInt aLength) */
 void hle_Mem_FillZ(ngage_cpu_t* c) {
     uint32_t p = c->r[0], n = c->r[1];
+    rangechk(p, n, 1);
     memset(c->mem + p, 0, n);
 }
 
@@ -80,6 +91,11 @@ void hle_Cleanup_PopAndDestroyN(ngage_cpu_t* c) {
     while (n--) { uint32_t p = ngage_cleanup_pop(); if (p) ngage_free(c, p); }
 }
 
-void hle_User_Panic(ngage_cpu_t* c) { ngage_unimplemented(c, 0, "User::Panic"); }
+/* User::Panic(const TDesC16& aCategory, TInt aReason) — FATAL: never returns in Symbian.
+ * Unwind out (a returning panic causes runaway retry loops in the active-object code). */
+void hle_User_Panic(ngage_cpu_t* c) {
+    fprintf(stderr, "[GUEST PANIC] reason %d\n", (int)c->r[1]);
+    ngage_leave(c, -1000 - (int32_t)c->r[1]);
+}
 void hle_User_Exit(ngage_cpu_t* c)  { ngage_leave(c, (int32_t)c->r[0]); }   /* unwind out */
 /* hle_RHandleBase_Close lives in hle/efsrv.c (it may close an open file handle). */

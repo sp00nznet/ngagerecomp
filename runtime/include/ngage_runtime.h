@@ -21,25 +21,40 @@ extern "C" {
  * (A paged model can replace this later without touching generated code.) */
 #define NGAGE_IMAGE_BASE 0x10000000u
 
+/* ---- optional guest-memory bounds guard (debug bring-up: -DNGAGE_MEM_GUARD) ---- */
+#ifdef NGAGE_MEM_GUARD
+extern uint32_t ngage_mem_lo, ngage_mem_hi;
+void ngage_mem_fault(uint32_t addr, int size, int write);   /* prints + aborts */
+static inline void ngage_chk(uint32_t a, int sz, int w) {
+    if (a < ngage_mem_lo || a + (uint32_t)sz > ngage_mem_hi) ngage_mem_fault(a, sz, w);
+}
+#else
+#define ngage_chk(a, sz, w) ((void)0)
+#endif
+
 /* ---- guest memory (little-endian) ---- */
 static inline uint32_t ngage_r32(ngage_cpu_t* c, uint32_t a) {
+    ngage_chk(a, 4, 0);
     const uint8_t* p = c->mem + a;
     return (uint32_t)p[0] | ((uint32_t)p[1] << 8) | ((uint32_t)p[2] << 16) | ((uint32_t)p[3] << 24);
 }
 static inline uint16_t ngage_r16(ngage_cpu_t* c, uint32_t a) {
+    ngage_chk(a, 2, 0);
     const uint8_t* p = c->mem + a;
     return (uint16_t)((uint16_t)p[0] | ((uint16_t)p[1] << 8));
 }
-static inline uint8_t  ngage_r8 (ngage_cpu_t* c, uint32_t a) { return c->mem[a]; }
+static inline uint8_t  ngage_r8 (ngage_cpu_t* c, uint32_t a) { ngage_chk(a, 1, 0); return c->mem[a]; }
 
 static inline void ngage_w32(ngage_cpu_t* c, uint32_t a, uint32_t v) {
+    ngage_chk(a, 4, 1);
     uint8_t* p = c->mem + a;
     p[0]=(uint8_t)v; p[1]=(uint8_t)(v>>8); p[2]=(uint8_t)(v>>16); p[3]=(uint8_t)(v>>24);
 }
 static inline void ngage_w16(ngage_cpu_t* c, uint32_t a, uint16_t v) {
+    ngage_chk(a, 2, 1);
     uint8_t* p = c->mem + a; p[0]=(uint8_t)v; p[1]=(uint8_t)(v>>8);
 }
-static inline void ngage_w8 (ngage_cpu_t* c, uint32_t a, uint8_t v) { c->mem[a]=v; }
+static inline void ngage_w8 (ngage_cpu_t* c, uint32_t a, uint8_t v) { ngage_chk(a, 1, 1); c->mem[a]=v; }
 
 /* ---- NZCV flags (live in cpsr) ---- */
 #define NGAGE_BIT(n) (1u << (n))
@@ -101,6 +116,7 @@ void         ngage_desc_setlen(ngage_cpu_t* c, uint32_t addr, uint32_t len);
 
 /* ---- image data ---- */
 int  ngage_load_image(ngage_cpu_t* c, const char* segments_bin);  /* segs -> guest mem; count or -1 */
+void ngage_mem_guard_init(uint32_t lo, uint32_t hi);              /* debug: valid guest addr range */
 
 /* ---- host file backing for EFSRV ---- */
 void ngage_fs_mount(const char* host_root);   /* directory the guest filesystem maps to */

@@ -68,12 +68,29 @@ generated code or shims.
 
 ## Status
 
-**66 / 233 implemented**, 167 named-stubbed (`runtime/src/hle/*` + `runtime/src/`).
+**88 / 233 implemented**, 145 named-stubbed (`runtime/src/hle/*` + `runtime/src/`).
 
-Added for the bootstrap: **descriptors** (`hle/descriptors.c`: TPtr8/16, TPtrC16, TBuf,
-SetLength, PtrZ), the **active scheduler / CPeriodic** game-loop timer + a pump
-(`hle/scheduler.c`), and `CEikAppUi::ApplicationRect` (`hle/coe.c`). See the per-game
+Added for the bootstrap: **descriptors** (`hle/descriptors.c`), the **CPeriodic** game-loop
+timer + a pump (`hle/scheduler.c`), `CEikAppUi::ApplicationRect` (`hle/coe.c`), and the
+**compiler runtime** (`hle/softfloat.c`: 22 libgcc soft-float/integer-divide helpers — the
+game does double math during init). `User::Panic` is now correctly **fatal** (a returning
+panic caused runaway retry recursion). See the per-game
 [boot-chain trace](https://github.com/sp00nznet/sonicn-ngage/blob/main/docs/BOOT-CHAIN.md).
+
+Driving `AppUi::ConstructL` runs deep — allocation, descriptors, sub-object construction,
+float math — then panics at the **active-object state check** and unwinds cleanly via
+`ngage_run`. The frontier is the **active-object / async machinery** (the stubbed scheduler
+never advances `CActive` state): real `CActive` request/complete + `RTimer` firing + the
+run loop, plus the nested-`TRAP` lifter hook (the game's retry loop uses `TRAP`).
+
+### Debugging the bring-up
+
+Two facilities locate each fault (in `runtime/src/`):
+- **Memory guard** (`-DNGAGE_MEM_GUARD`, `debug.c`): a wild guest access reports its
+  address + the recent call trace instead of a blind host segfault.
+- **Recursion + call-trace guard** (`dispatch.c`): the dispatcher keeps a 32-entry ring of
+  dispatched addresses and aborts with it on runaway recursion (native stack mirrors guest
+  depth). This is how the LDM bug and the panic loop were both pinpointed.
 
 
 - **mem:** `memcpy`, `memset`, `Mem::FillZ`
