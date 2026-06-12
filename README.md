@@ -62,7 +62,9 @@ We don't start from scratch on the HLE: the open-source [EKA2L1](https://github.
 ## Roadmap
 
 - [x] Confirm IDA loads an N-Gage `.app` and recovers functions + imports *(SonicN: 2,621 funcs, 233 imports)*
-- [ ] ARMv4T instruction lifter → C (start with the subset SonicN's `.app` actually uses)
+- [x] IDA bridge (`extract.py`) + **ARMv4 lifter MVP** (`lift.py`) — leaf functions lift to C, compile under `clang -Wall`, and round-trip correctly *(70% of instructions, 27% of small functions, zero stubs)*
+- [ ] Control flow: branches → labels/`goto`, calls → guest→native dispatch *(next)*
+- [ ] Stack ops (`push`/`pop`/`ldm`/`stm`) + standalone shifts
 - [ ] NGageRuntime core: register/flag/memory model + dispatch
 - [ ] Symbian HLE: bring-up set (process/heap, file server reads, framebuffer present, key input)
 - [ ] First frame on screen from a real game

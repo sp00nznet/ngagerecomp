@@ -8,8 +8,12 @@
 *.a
 *.lib
 
-# Generated recompiler output
+# Generated recompiler output + anything derived from a game image
 /recompiler/out/
+/recompiler/_rt/
+/recompiler/functions.json
+/recompiler/*.json
+/recompiler/generated*.c
 /**/generated/
 
 # NEVER commit game binaries or assets — this is a tool, you bring your own dump.
@@ -27,3 +31,7 @@ ROMS.zip
 .idea/
 .DS_Store
 Thumbs.db
+
+# Python
+__pycache__/
+*.pyc
