@@ -8,6 +8,9 @@
  */
 #include "ngage_cpu.h"
 #include "ngage_runtime.h"
+#ifdef NGAGE_MEM_GUARD
+#include <stdio.h>
+#endif
 
 static uint32_t g_base, g_end, g_brk;
 
@@ -24,6 +27,12 @@ uint32_t ngage_alloc(ngage_cpu_t* c, uint32_t size) {
     for (uint32_t p = g_base; p < g_brk; ) {
         uint32_t bsize = ngage_r32(c, p);
         uint32_t bfree = ngage_r32(c, p + 4);
+#ifdef NGAGE_MEM_GUARD
+        if (bsize > (g_end - g_base) || bsize == 0) {
+            fprintf(stderr, "*** HEAP CORRUPT: block @%#x has size %#x (free=%#x) ***\n", p, bsize, bfree);
+            ngage_mem_fault(p, 0, 0);
+        }
+#endif
         if (bfree && bsize >= size) { ngage_w32(c, p + 4, 0u); return p + 8; }
         p += 8 + bsize;
     }

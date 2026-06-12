@@ -68,7 +68,14 @@ generated code or shims.
 
 ## Status
 
-**88 / 233 implemented**, 145 named-stubbed (`runtime/src/hle/*` + `runtime/src/`).
+**89 / 233 implemented**, 144 named-stubbed (`runtime/src/hle/*` + `runtime/src/`). Added the
+**audio output stream** (`hle/media.c`): a `CMdaAudioOutputStream` HLE object with a
+synthetic no-op vtable (reusable pattern for any HLE-created C++ object the game calls
+virtually). Three lifter bugs fixed along the way (see the recompiler README).
+
+The bootstrap now runs **through the whole audio active-object setup and into the control's
+`ConstructL`** (`sub_10016990`), which creates the game's `CFbsBitmap`s — the next fault is
+an HLE gap there (a graphics object a stub returns null for), not a lifter bug.
 
 Added for the bootstrap: **descriptors** (`hle/descriptors.c`), the **CPeriodic** game-loop
 timer + a pump (`hle/scheduler.c`), `CEikAppUi::ApplicationRect` (`hle/coe.c`), and the

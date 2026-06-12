@@ -88,6 +88,8 @@ void hle_floatsidf(ngage_cpu_t*); void hle_floatsisf(ngage_cpu_t*);
 void hle_fixdfsi(ngage_cpu_t*); void hle_fixsfsi(ngage_cpu_t*);
 void hle_divsi3(ngage_cpu_t*); void hle_udivsi3(ngage_cpu_t*); void hle_modsi3(ngage_cpu_t*);
 void hle_cmpdf2(ngage_cpu_t*); void hle_cmpsf2(ngage_cpu_t*);
+/* audio (hle/media.c) */
+void hle_CMdaAudioOutputStream_NewL(ngage_cpu_t*); void hle_media_method(ngage_cpu_t*);
 
 #ifdef __cplusplus
 }

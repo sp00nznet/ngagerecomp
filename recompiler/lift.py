@@ -94,6 +94,7 @@ class Lifter:
         self.md_t = Cs(CS_ARCH_ARM, CS_MODE_THUMB + CS_MODE_LITTLE_ENDIAN)
         self.md_t.detail = True
         self.stats = {"insns": 0, "lifted": 0, "stubbed": 0}
+        self._call_continue = set()   # bx-reg addrs that are calls (mov lr,pc; bx reg)
 
     # --- operand rendering -------------------------------------------------
     def reg(self, ins, rid, pc):
@@ -162,8 +163,14 @@ class Lifter:
         if ins.group(CS_GRP_JUMP):
             op = ins.operands[0]
             if op.type == ARM_OP_REG:                      # bx <reg>
-                stmt = ("return;" if op.reg == ARM_REG_LR
-                        else f"ngage_call(c, {self.reg(ins, op.reg, ins.address)}); return;")
+                if op.reg == ARM_REG_LR:
+                    stmt = "return;"
+                elif ins.address in self._call_continue:
+                    # ARMv4 indirect CALL idiom (mov lr,pc; bx reg): call, then continue
+                    # to the epilogue — NOT a tail return.
+                    stmt = f"ngage_call(c, {self.reg(ins, op.reg, ins.address)});"
+                else:
+                    stmt = f"ngage_call(c, {self.reg(ins, op.reg, ins.address)}); return;"
             else:                                          # b/bcc <imm>
                 tgt = op.imm & 0xffffffff
                 stmt = (f"goto L_{tgt:08x};" if tgt in headset
@@ -309,8 +316,21 @@ class Lifter:
             addr = b
             if mem.index:
                 idx = self.reg(ins, mem.index, pc)
-                if getattr(mem, "lshift", 0):
-                    idx = f"({idx} << {mem.lshift})"
+                # Scaled index shift is on the OPERAND (mem_op.shift), not mem.lshift.
+                st, sv = mem_op.shift.type, mem_op.shift.value
+                if not (st and sv) and getattr(mem, "lshift", 0):
+                    st, sv = ARM_SFT_LSL, mem.lshift
+                if st and sv:
+                    if st == ARM_SFT_LSL:
+                        idx = f"({idx} << {sv})"
+                    elif st == ARM_SFT_LSR:
+                        idx = f"({idx} >> {sv})"
+                    elif st == ARM_SFT_ASR:
+                        idx = f"((uint32_t)((int32_t){idx} >> {sv}))"
+                    elif st == ARM_SFT_ROR:
+                        idx = f"(({idx} >> {sv}) | ({idx} << {32 - sv}))"
+                    else:
+                        raise Unsupported()
                 sign = "-" if getattr(mem_op, "subtracted", False) else "+"
                 addr = f"{addr} {sign} {idx}"
             if mem.disp:
@@ -419,6 +439,20 @@ class Lifter:
         # Only addresses we actually decoded can be local goto targets; anything else
         # (other chunks, other functions) routes through the dispatch table.
         headset = {addr for addr, _ in decoded}
+
+        # Detect the ARMv4 indirect-CALL idiom `mov lr, pc; bx/blx reg` (or `mov pc, reg`):
+        # such a `bx reg` is a call that continues, not a tail return.
+        self._call_continue = set()
+        for i in range(len(decoded) - 1):
+            a = decoded[i][1]
+            if (a.mnemonic.split('.')[0] == "mov" and len(a.operands) == 2
+                    and a.operands[0].type == ARM_OP_REG and a.operands[1].type == ARM_OP_REG
+                    and regnum(a.reg_name(a.operands[0].reg)) == 14   # lr
+                    and a.operands[1].reg == ARM_REG_PC):
+                b = decoded[i + 1][1]
+                if (b.mnemonic.split('.')[0] in ("bx", "blx")
+                        and b.operands and b.operands[0].type == ARM_OP_REG):
+                    self._call_continue.add(b.address)
 
         # Pass 1: intra-function branch targets become labels.
         labels = set()

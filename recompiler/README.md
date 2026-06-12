@@ -101,14 +101,19 @@ constant jump-table data is a TODO before those code paths run for real.
 ## Correctness notes
 
 Running real game code is the lifter's true test — it surfaces bugs the per-instruction
-compile can't. One found and fixed this way: **`LDM` where the base register is also in the
-register list** (e.g. `ldm r9,{r9,r10}`). The naive emission loads `r9` first, clobbering
-the base before the second element's address is computed. The fix snapshots the base into a
-temp so every element uses the original:
+compile can't. Three found and fixed this way, each affecting *any* game:
 
-```c
-{ uint32_t _b = c->r[9]; c->r[9] = ngage_r32(c, _b); c->r[10] = ngage_r32(c, _b + 4); }
-```
+1. **`LDM` clobbering its own base** (`ldm r9,{r9,r10}`): loading `r9` first wrecks the
+   base before later element addresses. Fix: snapshot the base into a temp `_b` and address
+   every element off it.
+2. **Scaled index dropped** (`ldr r0,[r6,r5,lsl #2]`): Capstone reports the index shift on
+   the *operand* (`op.shift`), not `mem.lshift` — reading the wrong field silently produced
+   `r6 + r5` instead of `r6 + r5*4`. Affects all array indexing.
+3. **ARMv4 indirect call mis-lifted as a tail return** (`mov lr, pc; bx ip`): `bx reg` was
+   emitted as `…; return;`, skipping the function epilogue that restores `r4`–`r11`. Fix:
+   when a `bx reg` is preceded by `mov lr, pc`, it's a call-and-continue, not a return.
 
-Build the runtime with `-DNGAGE_MEM_GUARD` during bring-up to turn wild guest accesses into
-located reports (faulting address + call trace) — see `docs/SYMBIAN-HLE.md`.
+Two debug builds find these fast (see `docs/SYMBIAN-HLE.md`):
+- `-DNGAGE_MEM_GUARD` — wild guest accesses report their address + call stack.
+- `-DNGAGE_ABI_CHECK` — flags any function that returns with `r4`–`r11`/`sp` altered (how
+  bug #3 was pinpointed to the exact function).

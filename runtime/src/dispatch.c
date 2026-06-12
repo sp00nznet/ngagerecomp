@@ -58,7 +58,26 @@ void ngage_call(ngage_cpu_t* c, uint32_t addr) {
         if (g_tab[mid].addr < addr) lo = mid + 1;
         else hi = mid;
     }
-    if (lo < g_n && g_tab[lo].addr == addr) { g_tab[lo].fn(c); ngage_calldepth--; return; }
+    if (lo < g_n && g_tab[lo].addr == addr) {
+#ifdef NGAGE_ABI_CHECK
+        uint32_t save[9];
+        for (int i = 0; i < 8; i++) save[i] = c->r[4 + i];   /* r4..r11 callee-saved */
+        save[8] = c->r[13];                                  /* sp must balance       */
+        g_tab[lo].fn(c);
+        for (int i = 0; i < 8; i++) if (c->r[4 + i] != save[i]) {
+            fprintf(stderr, "*** ABI VIOLATION: %#x clobbered r%d (%#x -> %#x) ***\n",
+                    addr, 4 + i, save[i], c->r[4 + i]);
+            abort();
+        }
+        if (c->r[13] != save[8]) {
+            fprintf(stderr, "*** ABI VIOLATION: %#x left sp %#x -> %#x ***\n", addr, save[8], c->r[13]);
+            abort();
+        }
+#else
+        g_tab[lo].fn(c);
+#endif
+        ngage_calldepth--; return;
+    }
     ngage_calldepth--;
     /* Not a lifted function or HLE import: not-yet-lifted code or a bad pointer. */
     ngage_unimplemented(c, addr, "call to unregistered address");

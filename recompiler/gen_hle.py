@@ -98,6 +98,8 @@ IMPLEMENTED = {
     "__gedf2": "hle_cmpdf2", "__gtdf2": "hle_cmpdf2", "__ledf2": "hle_cmpdf2",
     "__ltdf2": "hle_cmpdf2", "__nedf2": "hle_cmpdf2",
     "__gtsf2": "hle_cmpsf2", "__lesf2": "hle_cmpsf2",
+    # audio output stream
+    "CMdaAudioOutputStreamPadFunction__Fv": "hle_CMdaAudioOutputStream_NewL",
 }
 
 
