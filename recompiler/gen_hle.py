@@ -87,6 +87,10 @@ IMPLEMENTED = {
     "__6TPtr16PUsi": "hle_TPtr16_pm",
     "__6TPtr16PUsii": "hle_TPtr16_plm",
     "__7TPtrC16PCUs": "hle_TPtrC16_z",
+    "Ptr__C7TDesC16": "hle_TDesC_Ptr",
+    "Ptr__C6TDesC8": "hle_TDesC_Ptr",
+    "Length__C7TDesC16": "hle_TDesC_Length",
+    "Length__C6TDesC8": "hle_TDesC_Length",
     "__9TBufBase8i": "hle_TBufBase",
     "__10TBufBase16i": "hle_TBufBase",
     "SetLength__5TDes8i": "hle_TDes_SetLength",
@@ -103,6 +107,18 @@ IMPLEMENTED = {
     "__gtsf2": "hle_cmpsf2", "__lesf2": "hle_cmpsf2",
     # audio output stream
     "CMdaAudioOutputStreamPadFunction__Fv": "hle_CMdaAudioOutputStream_NewL",
+    "NewL__CMdaAudioOutputStreamRMMdaAudioOutputStreamCallbackPCMdaServer": "hle_CMdaAudioOutputStream_NewL",
+    # active scheduler + event injection (run-loop primitive)
+    "Add__16CActiveSchedulerP7CActive": "hle_CActiveScheduler_Add",
+    "RequestComplete__4UserRP14TRequestStatusi": "hle_User_RequestComplete",
+    "WaitForRequest__4UserR14TRequestStatus": "hle_User_WaitForRequest",
+    "SetActive__7CActive": "hle_CActive_SetActive",
+    # Snakes graphics (CFbsBitmap reused by name; CFbsScreenDevice::Update = present point)
+    "Load__10CFbsBitmapRC7TDesC16li": "hle_CFbsBitmap_Load",
+    "Update__16CFbsScreenDevice": "hle_NOKIAFC_present",
+    "NewL__16CFbsBitmapDeviceP10CFbsBitmap": "hle_CFbsBitmapDevice_NewL",
+    "Create__9CWsBitmapRC5TSize12TDisplayMode": "hle_CFbsBitmap_Create",
+    "__9CWsBitmapR10RWsSession": "hle_CFbsBitmap_ctor",
     # WS32 window server (Snakes)
     "WS32_348": "hle_ws_object",
     "WS32_58": "hle_ws_noop", "WS32_245": "hle_ws_noop", "WS32_289": "hle_ws_noop", "WS32_350": "hle_ws_noop",
@@ -130,8 +146,10 @@ def main():
         else:
             fn = f"hle_stub_{i}"
             label = re.sub(r'["\\]', "", f'{imp["dll"]}:{name}')
+            # Default return is 0 (KErrNone / null) — correct "feature absent" semantics
+            # and avoids garbage-in-r0 from the previous call corrupting a branch.
             stubs.append(f'static void {fn}(ngage_cpu_t* c){{ '
-                         f'ngage_unimplemented(c, {slot:#x}u, "{label}"); }}')
+                         f'ngage_unimplemented(c, {slot:#x}u, "{label}"); c->r[0]=0; }}')
             shim = fn
         regs.append((slot, shim))
 

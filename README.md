@@ -50,7 +50,16 @@ We don't start from scratch on the HLE: the open-source [EKA2L1](https://github.
 
 This repo is the framework; individual game ports live in their own repos:
 - [`sonicn-ngage`](https://github.com/sp00nznet/sonicn-ngage) — first target; boots, runs its game loop, loads real assets (NOKIAFC / hand-rolled rendering).
-- [`snakes-ngage`](https://github.com/sp00nznet/snakes-ngage) — second target; **proves the lifter generalizes** (100% / 0 stubs, compiles clean) — window-server rendering.
+- [`snakes-ngage`](https://github.com/sp00nznet/snakes-ngage) — second target; **proves the lifter generalizes** (100% / 0 stubs, compiles clean); window-server HLE bring-up.
+
+**Live reference oracle (new).** EKA2L1 (the open-source N-Gage emulator) now runs the real
+game headless under our instrumentation (Lua breakpoint/IPC hooks at raw IDA addresses, plus
+a GDB stub). That turns HLE bring-up into a **differential** process: run the recomp's
+function under the hard memory guard, see where it faults, hook the same function in EKA2L1
+to learn what *reality* does, and fix the HLE to match. This already paid for itself — it
+revealed that Snakes's long-suspected "multiplayer wall" was a one-line bug (unmapped import
+stubs leaking garbage in `r0`, faking a Bluetooth code path that never runs at boot), not a
+real entanglement. See [`harness/`](harness/).
 
 See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) and [`docs/SYMBIAN-HLE.md`](docs/SYMBIAN-HLE.md).
 
@@ -78,11 +87,15 @@ See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) and [`docs/SYMBIAN-HLE.md`](d
 - [x] **Game code runs** — image-data loader (`image.c`) + virtual dispatch (`ngage_vcall`); the app's `NewApplication()` executes and `CreateDocumentL` dispatches through the vtable
 - [x] **App init chain traced + driven** — `CPeriodic` + pump, descriptor ctors, soft-float runtime, `ApplicationRect`; fixed a real `LDM` lifter bug; `AppUi::ConstructL` runs deep (alloc, descriptors, float math) and panics cleanly at the active-object check (**88/233 shims**, memory + recursion guards locate faults)
 - [x] **Game boots + runs its render loop** — `ConstructL` completes, the `CPeriodic` tick runs, and the game renders into a `CFbsBitmap` backbuffer that the present pipeline captures (currently a blank/loading frame). **90/233 shims**
-- [ ] Real asset loading (`.mbm`/`.bin` decode) + game-state progression → actual gameplay graphics
-- [ ] Active-object / async machinery (`CActive` request-complete + `RTimer` run loop) + nested `TRAP` recovery
+- [x] **Second title proves the framework generalizes** — Snakes (a structurally different binary: 2,028 funcs, multi-binary, 598 imports) lifts **100% / 0 stubs** and compiles clean; only one new instruction (`smlal`) was needed. The recompiler is not game-specific.
+- [x] **EKA2L1 live oracle** — N-Gage device installed headless; the real game runs under Lua instrumentation (breakpoint + IPC hooks at raw IDA addresses) + a GDB stub. Captures the real call sequence, object layouts, and run-loop. Harness: [`harness/run-ngage-oracle.ps1`](harness/run-ngage-oracle.ps1), [`harness/snakes_oracle.lua`](harness/snakes_oracle.lua).
+- [x] **Differential HLE debugging** — fault in the recomp → hook the same function in EKA2L1 → fix the HLE to match. Landed fixes: stubs return `r0=0` (correct "feature-absent" default), `TDesC::Ptr`/`Length`, object-factory `NewL`s return real HLE objects. Each fix advances Snakes's `ConstructL` past a real divergence.
+- [x] **Run-loop primitive** — `CActiveScheduler::Add` / `User::RequestComplete` / event injection (`OfferKeyEventL`, `Draw`) in `runtime/src/hle/scheduler.c`. The oracle confirmed the real menu loop is the command dispatcher invoked every frame with event `0x3E8`.
+- [ ] Drive Snakes's `ConstructL` to completion via the differential loop, then the menu loop
+- [ ] Real asset loading (`.mbm`/`.bin`/`.pak` decode) + game-state progression → actual gameplay graphics
+- [ ] Input injection in the oracle → capture the real game-start command + window-server draw calls
 - [ ] First *gameplay* frame on screen
 - [ ] Per-game config format + docs
-- [ ] Second title → prove the framework generalizes
 
 ## Legal
 

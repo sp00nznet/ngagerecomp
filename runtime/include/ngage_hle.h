@@ -75,12 +75,23 @@ void hle_sched_noop(ngage_cpu_t*);              /* CActive/CActiveScheduler/RTim
 int  ngage_pump_periodics(ngage_cpu_t*, int count);  /* drive the game loop N ticks      */
 int  ngage_periodic_count(void);
 void hle_User_TickCount(ngage_cpu_t*); void hle_User_After(ngage_cpu_t*);
+/* active scheduler + window-server event injection (the run-loop primitive) */
+void hle_CActiveScheduler_Add(ngage_cpu_t*);
+void hle_User_RequestComplete(ngage_cpu_t*);
+void hle_User_WaitForRequest(ngage_cpu_t*);
+void hle_CActive_SetActive(ngage_cpu_t*);
+uint32_t ngage_call_vmethod(ngage_cpu_t*, uint32_t obj, int slot, uint32_t a1, uint32_t a2);
+int  ngage_as_step(ngage_cpu_t*);
+int  ngage_active_count(void);
+uint32_t ngage_inject_key(ngage_cpu_t*, uint32_t control, uint32_t code, uint32_t scancode);
+void ngage_invoke_draw(ngage_cpu_t*, uint32_t control, uint32_t rect);
 /* control framework (hle/coe.c) */
 void hle_ApplicationRect(ngage_cpu_t*);         /* CEikAppUi::ApplicationRect() -> TRect */
 /* descriptors (hle/descriptors.c) */
 void hle_TPtr8_pm(ngage_cpu_t*);    void hle_TPtr8_plm(ngage_cpu_t*);
 void hle_TPtr16_pm(ngage_cpu_t*);   void hle_TPtr16_plm(ngage_cpu_t*);
 void hle_TPtrC16_z(ngage_cpu_t*);   void hle_TBufBase(ngage_cpu_t*);
+void hle_TDesC_Ptr(ngage_cpu_t*); void hle_TDesC_Length(ngage_cpu_t*);
 void hle_TDes_SetLength(ngage_cpu_t*); void hle_TDes8_PtrZ(ngage_cpu_t*);
 /* compiler runtime (hle/softfloat.c) */
 void hle_adddf3(ngage_cpu_t*); void hle_subdf3(ngage_cpu_t*); void hle_muldf3(ngage_cpu_t*);

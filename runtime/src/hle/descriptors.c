@@ -39,6 +39,12 @@ void hle_TBufBase(ngage_cpu_t* c) {
     ngage_w32(c, o, 3u << 28); ngage_w32(c, o + 4, c->r[1]);
 }
 
+/* TDesC8::Ptr() / TDesC16::Ptr() — return the descriptor's data pointer */
+void hle_TDesC_Ptr(ngage_cpu_t* c) { c->r[0] = ngage_desc(c, c->r[0]).ptr; }
+
+/* TDesC8::Length() / TDesC16::Length() — return the descriptor length (elements) */
+void hle_TDesC_Length(ngage_cpu_t* c) { c->r[0] = ngage_desc(c, c->r[0]).len; }
+
 /* TDes8::SetLength(TInt aLength) */
 void hle_TDes_SetLength(ngage_cpu_t* c) { ngage_desc_setlen(c, c->r[0], c->r[1]); }
 

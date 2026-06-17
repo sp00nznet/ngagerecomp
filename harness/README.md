@@ -36,3 +36,30 @@ $env:EKA2L1_HOME = "D:\path\to\eka2l1"      # folder with eka2l1_qt.exe
 
 EKA2L1's real long-term value here is its **source code**: the C++ implementations of
 EUSER / EFSRV / FBSCLI / window-server semantics are the spec our native HLE mirrors.
+
+## 3. `run-ngage-oracle.ps1` + `oracle-trace.lua` — the live oracle (WORKING)
+
+EKA2L1 runs the real game, so it's ground truth for the call sequence / memory state
+the recomp must reproduce. Verified end-to-end: **Snakes boots and runs in EKA2L1**
+(engine `6r45_1.app`, UID3 `0x101fd3db`; screen device created; clean, no panic).
+
+**Device install (one-time, headless).** The N-Gage S60v1 firmware is a ready-made
+EKA2L1 device package (`Data/devices.yml` + `Data/roms/NEM-4/SYM.ROM` +
+`Data/drives/z/NEM-4/...`). Extract its `Data/` into `<EKA2L1>/data/` (config.yml
+`data-storage: data`). Then `--listdevices` shows **NEM-4** (N-Gage) and **RH-29**
+(N-Gage QD); `--device NEM-4` selects it.
+
+**Per-game + run.** `run-ngage-oracle.ps1 -Game <gamedir> -Trace` installs the game's
+`system/` onto the **C: and E:** guest drives (titles run from E: but read assets/saves
+from C:) and launches `--runng` (auto-detects the single N-Gage game on E:).
+
+**Instrumentation:**
+- **IPC/service trace** — `log-ipc` / `log-svc` in config.yml (coarse, no args; first pass).
+- **Lua hooks** (`scripts/*.lua`, auto-loaded) — `events.registerIpcHook('!Windowserver',…)`
+  for draw calls (load-address independent), `events.registerBreakpointHook(image, addr, 0,
+  uid3, fn)` for the game's own functions (rebase: `loadbase + (idaAddr - 0x10000000)`),
+  plus `cpu.getReg`/`mem.readDword`. Template: `oracle-trace.lua`.
+- **GDB stub** — `enable-gdb-stub: true` (port 24689); attach IDA's remote GDB backend
+  for single-step / breakpoints against the live emulated ARM.
+
+This de-risks bring-up: instead of guessing HLE behavior, diff against EKA2L1.
