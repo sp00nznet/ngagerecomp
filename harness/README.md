@@ -26,7 +26,7 @@ framebuffer, timing, and HLE behavior.
 
 ```powershell
 $env:EKA2L1_HOME = "D:\path\to\eka2l1"      # folder with eka2l1_qt.exe
-./run-eka2l1.ps1 -Game "D:\...\sonicn-ngage\game"
+./run-eka2l1.ps1 -Game "<recomp-root>\ngage\sonicn-ngage\game"
 ```
 
 > **Firmware note.** EKA2L1 boots Symbian, which needs **N-Gage device firmware you

@@ -28,8 +28,8 @@
     - GDB stub: set enable-gdb-stub true (port 24689), attach IDA's remote GDB.
 
 .EXAMPLE
-  $env:EKA2L1_HOME = "D:\recomp\ngage\emu\eka2l1"
-  ./run-ngage-oracle.ps1 -Game "D:\recomp\ngage\snakes-ngage\game" -Seconds 50 -Trace
+  $env:EKA2L1_HOME = "$env:RECOMP_ROOT\ngage\emu\eka2l1"
+  ./run-ngage-oracle.ps1 -Game "$env:RECOMP_ROOT\ngage\snakes-ngage\game" -Seconds 50 -Trace
 #>
 param(
   [Parameter(Mandatory=$true)][string]$Game,

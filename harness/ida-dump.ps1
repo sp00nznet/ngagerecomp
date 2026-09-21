@@ -8,9 +8,9 @@
   activated and a Python that has the `idapro` package.
 
 .EXAMPLE
-  $env:IDA_TOOLKIT = "E:\ida"
-  ./ida-dump.ps1 "D:\...\game\system\apps\sonicn\sonicn.app" imports
-  ./ida-dump.ps1 "D:\...\sonicn.app" decompile 0x100163bc
+  $env:IDA_TOOLKIT = "<path-to-ida-recomp-toolkit>"
+  ./ida-dump.ps1 "<game-dir>\game\system\apps\sonicn\sonicn.app" imports
+  ./ida-dump.ps1 "<game-dir>\sonicn.app" decompile 0x100163bc
 #>
 param(
   [Parameter(Mandatory, Position = 0)] [string]$App,

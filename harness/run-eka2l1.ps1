@@ -9,8 +9,8 @@
   This script does not fetch firmware.
 
 .EXAMPLE
-  $env:EKA2L1_HOME = "D:\recomp\ngage\emu\eka2l1"
-  ./run-eka2l1.ps1 -Game "D:\recomp\ngage\sonicn-ngage\game"
+  $env:EKA2L1_HOME = "$env:RECOMP_ROOT\ngage\emu\eka2l1"
+  ./run-eka2l1.ps1 -Game "$env:RECOMP_ROOT\ngage\sonicn-ngage\game"
 #>
 param(
   [string]$Game,
